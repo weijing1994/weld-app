@@ -3,31 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>工程进度统计看板</title>
+  <title>工程量日报看板</title>
   <style>
-    .report-body { padding: 10px; background: #f4f6f9; font-family: sans-serif; }
-    .report-card { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
-    .report-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
-    .report-th, .report-td { border: 1px solid #ddd; padding: 6px; text-align: center; }
-    .report-th { background: #e2e8f0; }
-    .report-back { display: inline-block; padding: 8px 16px; background: #718096; color: white; text-decoration: none; border-radius: 6px; }
+    /* 严格的排版隔离 */
+    body { background-color: #f4f6f9; padding: 10px; font-family: sans-serif; margin: 0; }
+    .card { background: #fff; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    
+    /* 按钮样式 */
+    .back-btn { display: block; padding: 12px; background: #718096; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-weight: bold; margin-bottom: 10px; }
+    
+    /* 表格居中与美化 */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+    .data-table th, .data-table td { border: 1px solid #cbd5e0; padding: 10px 5px; text-align: center; vertical-align: middle; }
+    .data-table th { background-color: #edf2f7; color: #2d3748; font-weight: bold; }
+    
+    #dateFilter { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; margin-top: 5px; }
   </style>
 </head>
-<body class="report-body">
-  <div class="report-card">
-    <a href="index.html" class="report-back">← 返回首页</a>
-    <h3 style="margin:10px 0;">工程量日报看板</h3>
-    <input type="date" id="dateFilter" onchange="loadStats()" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+<body onload="init()">
+
+  <div class="card">
+    <a href="index.html" class="back-btn">← 返回录入页</a>
+    <label style="font-weight:bold; color:#4a5568;">选择查看日期</label>
+    <input type="date" id="dateFilter" onchange="refreshData()">
   </div>
 
-  <div class="report-card">
-    <table class="report-table">
+  <div class="card">
+    <table class="data-table">
       <thead>
-        <tr class="report-th">
+        <tr>
           <th>序号</th><th>装置</th><th>材质</th><th>当日吋</th><th>当日道</th><th>总吋</th><th>未完成</th><th>完成率</th>
         </tr>
       </thead>
-      <tbody id="statBody"></tbody>
+      <tbody id="statBody">
+        <tr><td colspan="8">正在加载数据...</td></tr>
+      </tbody>
     </table>
   </div>
 
@@ -35,40 +45,45 @@
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
   const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
 
-  async function loadStats() {
+  function init() {
+    document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
+    refreshData();
+  }
+
+  async function refreshData() {
     const d = document.getElementById('dateFilter').value;
-    // 拉取全量数据
-    const res = await fetch(URL + "?select=*", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-999" }});
+    // 强制 Range: 0-999 获取全部数据
+    const res = await fetch(URL + "?select=*", { 
+      headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-999" } 
+    });
     const allData = await res.json();
     
-    // 按“装置+材质”分组
-    let groups = {};
+    // 统计逻辑：按 装置+材质 分组
+    let stats = {};
     allData.forEach(row => {
-      let key = `${row['装置代号']}_${row['材质']}`;
-      if (!groups[key]) groups[key] = { dev: row['装置代号'], mat: row['材质'], dayInch: 0, dayCount: 0, totalInch: 0 };
+      let key = (row['装置代号'] || '未知') + "_" + (row['材质'] || '无');
+      if (!stats[key]) stats[key] = { dev: row['装置代号'], mat: row['材质'], dayInch: 0, dayCount: 0, totalInch: 0 };
       
       let inch = parseFloat(row['吋径'] || 0);
-      groups[key].totalInch += inch; // 数据库总吋数
+      stats[key].totalInch += inch;
       if (row['焊接日期'] === d) {
-        groups[key].dayInch += inch;
-        groups[key].dayCount += 1;
+        stats[key].dayInch += inch;
+        stats[key].dayCount += 1;
       }
     });
 
-    // 渲染
-    document.getElementById('statBody').innerHTML = Object.values(groups).map((g, i) => {
-      let unfinish = (g.totalInch - g.dayInch).toFixed(1);
+    // 渲染表格
+    const tbody = document.getElementById('statBody');
+    tbody.innerHTML = Object.values(stats).map((g, i) => {
+      let remaining = (g.totalInch - g.dayInch).toFixed(1);
       let rate = g.totalInch > 0 ? ((g.dayInch / g.totalInch) * 100).toFixed(1) : 0;
       return `<tr>
         <td>${i+1}</td><td>${g.dev}</td><td>${g.mat}</td>
         <td>${g.dayInch.toFixed(1)}</td><td>${g.dayCount}</td>
-        <td>${g.totalInch.toFixed(1)}</td><td>${unfinish}</td><td>${rate}%</td>
+        <td>${g.totalInch.toFixed(1)}</td><td>${remaining}</td><td>${rate}%</td>
       </tr>`;
     }).join('');
   }
-
-  document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
-  loadStats();
 </script>
 </body>
 </html>
