@@ -3,32 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>日报看板</title>
+  <title>工程量日报看板</title>
   <style>
     body { background: #f4f6f9; padding: 5px; font-family: sans-serif; }
     .card { background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-    
-    /* 强力表格样式 */
     .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
     .data-table th, .data-table td { border: 1px solid #aaa; padding: 6px 2px; text-align: center; vertical-align: middle; }
     .data-table th { background: #d1d5db; color: #000; }
-    
     .back-btn { display: block; padding: 10px; background: #4a5568; color: white; text-align: center; text-decoration: none; border-radius: 6px; font-weight: bold; margin-bottom: 10px; }
   </style>
 </head>
-<body onload="loadAllData()">
+<body onload="init()">
 
   <div class="card">
-    <a href="index.html" class="back-btn">← 返回</a>
-    <input type="date" id="dateFilter" onchange="processData()" style="width:100%; padding:10px; box-sizing:border-box;">
+    <a href="index.html" class="back-btn">← 返回录入页</a>
+    <input type="date" id="dateFilter" onchange="loadStats()" style="width:100%; padding:10px; box-sizing:border-box;">
   </div>
 
   <div class="card">
     <table class="data-table">
       <thead>
-        <tr>
-          <th>序号</th><th>装置</th><th>材质</th><th>当日吋</th><th>当日道</th><th>总吋</th><th>未完</th><th>进度</th>
-        </tr>
+        <tr><th>序号</th><th>装置</th><th>材质</th><th>当日吋</th><th>当日道</th><th>总吋</th><th>未完成</th><th>进度</th></tr>
       </thead>
       <tbody id="statBody"></tbody>
     </table>
@@ -37,42 +32,46 @@
 <script>
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
   const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
-  let rawData = [];
 
-  async function loadAllData() {
+  async function init() {
     document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
-    const res = await fetch(URL + "?select=*", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-9999" }});
-    rawData = await res.json();
-    processData();
+    loadStats();
   }
 
-  function processData() {
+  async function loadStats() {
     const d = document.getElementById('dateFilter').value;
-    let groups = {}; // { 装置: { 材质1: {数据}, 材质2: {数据} } }
     
-    rawData.forEach(row => {
-      let dev = row['装置代号'] || '空';
+    // 1. 获取全量焊接数据
+    const res = await fetch(URL + "?select=*", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-9999" }});
+    const allData = await res.json();
+    
+    // 2. 从所有数据中提取出“所有出现过的装置代号”和“对应的所有材质”
+    // 这样无论今天有没有活，装置都会在这里
+    let deviceMap = {}; // { 装置: { 材质: {数据} } }
+    
+    allData.forEach(row => {
+      let dev = row['装置代号'] || '未定义';
       let mat = row['材质'] || '无';
-      if (!groups[dev]) groups[dev] = {};
-      if (!groups[dev][mat]) groups[dev][mat] = { dayInch: 0, dayCount: 0, totalInch: 0 };
+      if (!deviceMap[dev]) deviceMap[dev] = {};
+      if (!deviceMap[dev][mat]) deviceMap[dev][mat] = { dayInch: 0, dayCount: 0, totalInch: 0 };
       
       let inch = parseFloat(row['吋径'] || 0);
-      groups[dev][mat].totalInch += inch;
+      deviceMap[dev][mat].totalInch += inch;
       if (row['焊接日期'] === d) {
-        groups[dev][mat].dayInch += inch;
-        groups[dev][mat].dayCount += 1;
+        deviceMap[dev][mat].dayInch += inch;
+        deviceMap[dev][mat].dayCount += 1;
       }
     });
 
+    // 3. 渲染表格
     let html = "";
     let idx = 1;
-    // 遍历装置
-    Object.keys(groups).sort().forEach(dev => {
-      let mats = Object.keys(groups[dev]);
-      let rowSpan = mats.length; // 计算该装置跨几行
-
+    Object.keys(deviceMap).sort().forEach(dev => {
+      let mats = Object.keys(deviceMap[dev]);
+      let rowSpan = mats.length;
+      
       mats.forEach((mat, i) => {
-        let g = groups[dev][mat];
+        let g = deviceMap[dev][mat];
         let rate = g.totalInch > 0 ? Math.round((g.dayInch / g.totalInch) * 100) + "%" : "0%";
         
         html += `<tr>
