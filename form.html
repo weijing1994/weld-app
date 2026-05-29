@@ -26,7 +26,7 @@
   <h3>焊口数据录入</h3>
   
   <span class="label-hint">装置代号<span class="required-badge">1. 必选联动项</span></span>
-  <input id="device" list="device-list" placeholder="正在全量加载装置代号..." oninput="onDeviceChange()">
+  <input id="device" list="device-list" placeholder="正在秒速加载全量装置..." oninput="onDeviceChange()">
   <datalist id="device-list"></datalist>
   
   <span class="label-hint">管道编号<span class="required-badge">2. 必选联动项</span></span>
@@ -77,28 +77,22 @@
 
 <script>
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
-  const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
+  const BASE_URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/";
 
   let validDevices = [];
   let validPipes = [];
 
-  // 【最核心重写】利用云端一键压缩去重，直接向数据库索取最干净的独立列数据，彻底击碎几万行的截断限制！
+  // 1. 直接查询云端去重后的独立视图，彻底解决行数截断限制
   async function initDeviceCodes() {
     const deviceInput = document.getElementById('device');
     const deviceList = document.getElementById('device-list');
     try {
-      // 强力去重命令：只调取装置代号一列
-      const res = await fetch(URL + "?select=%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7", {
-        headers: { 
-          "apikey": KEY, 
-          "Authorization": "Bearer " + KEY,
-          "Prefer": "count=exact" 
-        }
+      const res = await fetch(BASE_URL + "v_unique_devices?select=*", {
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
       });
       const rawData = await res.json();
       
-      // 前端彻底清除多余项和空行并字母排序
-      validDevices = [...new Set(rawData.map(item => item["装置代号"]))].filter(Boolean).sort();
+      validDevices = rawData.map(item => item["装置代号"]).filter(Boolean);
       
       deviceList.innerHTML = '';
       validDevices.forEach(code => {
@@ -113,7 +107,7 @@
     }
   }
 
-  // 根据装置，云端去重捞出管道
+  // 2. 根据装置，精准向管道小秘书索取对应管线号
   async function onDeviceChange() {
     const deviceVal = document.getElementById('device').value;
     const pipeInput = document.getElementById('pipe');
@@ -131,12 +125,12 @@
     pipeInput.placeholder = "正在筛选管线号...";
     
     try {
-      const res = await fetch(URL + `?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&select=%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7`, {
+      const res = await fetch(BASE_URL + `v_unique_pipes?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&select=*`, {
         headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
       });
       const rawData = await res.json();
       
-      validPipes = [...new Set(rawData.map(item => item["管道编号"]))].filter(Boolean).sort();
+      validPipes = rawData.map(item => item["管道编号"]).filter(Boolean);
       
       pipeList.innerHTML = '';
       validPipes.forEach(pipe => {
@@ -152,7 +146,7 @@
     }
   }
 
-  // 根据管道，云端捞出焊口
+  // 3. 根据管道，向焊口小秘书精准索取对应焊口
   async function onPipeChange() {
     const deviceVal = document.getElementById('device').value;
     const pipeVal = document.getElementById('pipe').value;
@@ -167,12 +161,12 @@
     weldInput.placeholder = "正在筛选对应焊口号...";
     
     try {
-      const res = await fetch(URL + `?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7`, {
+      const res = await fetch(BASE_URL + `v_unique_welds?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=*`, {
         headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
       });
       const rawData = await res.json();
       
-      const validWelds = [...new Set(rawData.map(item => item["焊口编号"]))].filter(Boolean).sort();
+      const validWelds = rawData.map(item => item["焊口编号"]).filter(Boolean);
       
       weldList.innerHTML = '';
       validWelds.forEach(weld => {
@@ -188,7 +182,7 @@
     }
   }
 
-  // 提交保存数据
+  // 提交保存数据（依然提交到weld_data主表里）
   async function save() {
     const data = {
       "装置代号": document.getElementById('device').value,
@@ -214,7 +208,7 @@
     document.getElementById('msg').innerText = "提交中...";
     
     try {
-      const res = await fetch(URL + "?apikey=" + KEY, {
+      const res = await fetch(BASE_URL + "weld_data?apikey=" + KEY, {
         method: "POST",
         headers: { 
           "apikey": KEY, 
