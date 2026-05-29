@@ -22,23 +22,23 @@
     .trigger-btn.active { color: #2d3748; font-weight: bold; border-color: #3182ce; background-color: #f7fafc; }
     .trigger-btn:disabled { background-color: #edf2f7; color: #a0aec0; cursor: not-allowed; }
 
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: flex-end; }
-    .modal-content { background: #fff; width: 100%; max-width: 480px; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 20px; box-sizing: border-box; max-height: 80vh; overflow-y: auto; display: flex; flex-direction: column; animation: slideUp 0.2s ease-out; }
+    /* 优化遮罩层层级与稳定性 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: flex-end; }
+    .modal-content { background: #fff; width: 100%; max-width: 480px; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 20px; box-sizing: border-box; max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column; animation: slideUp 0.15s ease-out; }
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; flex-shrink: 0; }
     .modal-title { font-size: 16px; font-weight: bold; color: #2d3748; }
-    .modal-close { font-size: 20px; color: #a0aec0; cursor: pointer; border: none; background: none; padding: 5px; }
+    .modal-close { font-size: 22px; color: #e53e3e; cursor: pointer; border: none; background: #fff5f5; padding: 4px 12px; border-radius: 6px; font-weight: bold; }
     
-    .modal-search-box { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; margin-bottom: 12px; background-color: #f7fafc; flex-shrink: 0; }
-    .modal-search-box:focus { background-color: #fff; border-color: #3182ce; outline: none; }
+    .modal-search-box { width: 100%; padding: 12px; border: 2px solid #3182ce; border-radius: 6px; box-sizing: border-box; font-size: 15px; margin-bottom: 12px; background-color: #fff; flex-shrink: 0; }
+    .modal-search-box:focus { border-color: #2b6cb0; outline: none; }
 
-    .grid-scroll-area { overflow-y: auto; flex-grow: 1; margin-top: 5px; }
-    .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .grid-scroll-area { overflow-y: auto; flex-grow: 1; margin-top: 5px; -webkit-overflow-scrolling: touch; }
+    .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-bottom: 30px; }
     .data-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 11px 4px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.1s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .data-cell:hover { background: #e6f0fa; border-color: #bee3f8; color: #2b6cb0; }
-    .data-cell.selected { background: #3182ce; border-color: #3182ce; color: #fff; }
-    .data-cell.hidden { display: none; }
+    .data-cell.hidden { display: none !important; }
     .data-cell.recorded { background: #e2e8f0; border-color: #cbd5e0; color: #94a3b8; cursor: not-allowed; pointer-events: none; }
     
     button.submit-btn { background: #28a745; color: white; padding: 14px; width: 100%; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(40,167,69,0.2); }
@@ -47,7 +47,7 @@
     .footer { text-align: center; color: #a0aec0; font-size: 13px; margin-top: 30px; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
   </style>
 </head>
-<body onload="initSystem()">
+<body>
 
 <div class="container">
   <h3>焊口数据录入</h3>
@@ -114,14 +114,14 @@
   <div class="footer">作者：景伟</div>
 </div>
 
-<div id="dataModal" class="modal-overlay" onclick="closeModal()">
-  <div class="modal-content" onclick="event.stopPropagation()">
+<div id="dataModal" class="modal-overlay">
+  <div class="modal-content">
     <div class="modal-header">
       <div class="modal-title" id="modalTitleHint">请选择数据</div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <button class="modal-close" onclick="closeModal()">关闭</button>
     </div>
     
-    <input type="text" id="modalSearch" class="modal-search-box" placeholder="🔍 输入关键字进行模糊搜索过滤..." oninput="filterGridData()">
+    <input type="text" id="modalSearch" class="modal-search-box" placeholder="🔍 输入关键字进行筛选..." oninput="filterGridData()">
 
     <div class="grid-scroll-area">
       <div id="modalGridContainer" class="data-grid"></div>
@@ -137,6 +137,10 @@
   let validPipes = [];
   let validWelds = [];
   let currentModalType = "";
+
+  window.addEventListener('DOMContentLoaded', () => {
+    initSystem();
+  });
 
   function initSystem() {
     const today = new Date().toISOString().split('T')[0];
@@ -177,7 +181,7 @@
 
     if (type === 'device') {
       titleHint.innerText = "请选择装置代号 :";
-      searchInput.placeholder = "🔍 输入装置代号关键字快捷筛选...";
+      searchInput.placeholder = "🔍 输入装置代号快捷筛选...";
       
       validDevices.forEach(dev => {
         let cell = document.createElement('div');
@@ -190,7 +194,7 @@
     } 
     else if (type === 'pipe') {
       titleHint.innerText = "请选择管道编号 :";
-      searchInput.placeholder = "🔍 输入管道编号关键字快捷筛选...";
+      searchInput.placeholder = "🔍 输入管道编号快捷筛选...";
       
       validPipes.forEach(pipe => {
         let cell = document.createElement('div');
@@ -251,6 +255,8 @@
     }
 
     document.getElementById('dataModal').style.display = 'flex';
+    // 自动聚焦输入框，方便手机端直接打字
+    setTimeout(() => { searchInput.focus(); }, 100);
   }
 
   function closeModal() {
@@ -259,9 +265,9 @@
 
   function filterGridData() {
     const kw = document.getElementById('modalSearch').value.toLowerCase().trim();
-    const cells = document.querySelectorAll('.data-cell');
+    const cells = document.querySelectorAll('#modalGridContainer .data-cell');
     cells.forEach(cell => {
-      const searchTxt = cell.getAttribute('data-search');
+      const searchTxt = cell.getAttribute('data-search') || '';
       if (searchTxt.includes(kw)) {
         cell.classList.remove('hidden');
       } else {
@@ -386,7 +392,7 @@
       return;
     }
 
-    document.getElementById('msg').innerText = "正在执行终极防重锁校验...";
+    document.getElementById('msg').innerText = "正在执行终任防重锁校验...";
     
     try {
       const checkRes = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(data["装置代号"])}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(data["管道编号"])}&%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(data["焊口编号"])}&select=id,%E5%AE%9E%E9%99%85%E7%84%8A%E5%B7%A5%E5%8F%B7`, {
