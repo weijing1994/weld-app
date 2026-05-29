@@ -2,38 +2,73 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <title>日报看板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>工程进度统计看板</title>
   <style>
-    /* 样式隔离：所有样式以 report- 开头 */
-    .report-body { padding: 15px; background: #f4f6f9; font-family: sans-serif; margin: 0; }
-    .report-card { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .report-th, .report-td { border: 1px solid #e2e8f0; padding: 8px; text-align: center; }
-    .report-th { background: #edf2f7; }
-    .report-back { display: inline-block; padding: 10px 20px; background: #718096; color: white; text-decoration: none; border-radius: 6px; }
+    .report-body { padding: 10px; background: #f4f6f9; font-family: sans-serif; }
+    .report-card { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+    .report-th, .report-td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+    .report-th { background: #e2e8f0; }
+    .report-back { display: inline-block; padding: 8px 16px; background: #718096; color: white; text-decoration: none; border-radius: 6px; }
   </style>
 </head>
 <body class="report-body">
   <div class="report-card">
     <a href="index.html" class="report-back">← 返回首页</a>
-    <h3 style="margin:10px 0;">工程量日报</h3>
-    <input type="date" id="dateFilter" onchange="refreshData()" style="width:100%; padding:10px;">
+    <h3 style="margin:10px 0;">工程量日报看板</h3>
+    <input type="date" id="dateFilter" onchange="loadStats()" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
   </div>
+
   <div class="report-card">
-    <table class="report-table"><thead id="head"><tr><th>装置</th><th>吋数</th><th>完成率</th></tr></thead><tbody id="body"></tbody></table>
+    <table class="report-table">
+      <thead>
+        <tr class="report-th">
+          <th>序号</th><th>装置</th><th>材质</th><th>当日吋</th><th>当日道</th><th>总吋</th><th>未完成</th><th>完成率</th>
+        </tr>
+      </thead>
+      <tbody id="statBody"></tbody>
+    </table>
   </div>
+
 <script>
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
   const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
 
-  async function refreshData() {
+  async function loadStats() {
     const d = document.getElementById('dateFilter').value;
-    const res = await fetch(URL + "?焊接日期=eq." + d, { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY }});
-    const data = await res.json();
-    document.getElementById('body').innerHTML = data.map(i => `<tr><td>${i['装置代号']}</td><td>${i['吋径']}</td><td>--</td></tr>`).join('');
+    // 拉取全量数据
+    const res = await fetch(URL + "?select=*", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-999" }});
+    const allData = await res.json();
+    
+    // 按“装置+材质”分组
+    let groups = {};
+    allData.forEach(row => {
+      let key = `${row['装置代号']}_${row['材质']}`;
+      if (!groups[key]) groups[key] = { dev: row['装置代号'], mat: row['材质'], dayInch: 0, dayCount: 0, totalInch: 0 };
+      
+      let inch = parseFloat(row['吋径'] || 0);
+      groups[key].totalInch += inch; // 数据库总吋数
+      if (row['焊接日期'] === d) {
+        groups[key].dayInch += inch;
+        groups[key].dayCount += 1;
+      }
+    });
+
+    // 渲染
+    document.getElementById('statBody').innerHTML = Object.values(groups).map((g, i) => {
+      let unfinish = (g.totalInch - g.dayInch).toFixed(1);
+      let rate = g.totalInch > 0 ? ((g.dayInch / g.totalInch) * 100).toFixed(1) : 0;
+      return `<tr>
+        <td>${i+1}</td><td>${g.dev}</td><td>${g.mat}</td>
+        <td>${g.dayInch.toFixed(1)}</td><td>${g.dayCount}</td>
+        <td>${g.totalInch.toFixed(1)}</td><td>${unfinish}</td><td>${rate}%</td>
+      </tr>`;
+    }).join('');
   }
+
   document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
-  refreshData();
+  loadStats();
 </script>
 </body>
 </html>
