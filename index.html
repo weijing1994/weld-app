@@ -3,57 +3,503 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>焊口录入</title>
+  <title>焊口智能化录入系统</title>
+  
   <style>
-    /* 全局重置 */
-    body { background-color: #f4f6f9; margin: 0; padding: 15px; font-family: sans-serif; }
-    /* 样式隔离：所有样式仅作用于 .main-container */
-    .main-container { max-width: 480px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .main-container h3 { text-align: center; color: #2d3748; margin-top: 0; }
-    .main-container label { display: block; font-weight: bold; margin: 10px 0 5px; color: #4a5568; }
-    .main-container select, .main-container input { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-    .main-container button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 18px; margin-top: 20px; font-weight: bold; }
-    .main-container .nav-btn { display: block; background: #3182ce; color: white; text-align: center; padding: 14px; border-radius: 6px; margin-top: 15px; text-decoration: none; font-weight: bold; }
-    #msg { margin-top: 15px; color: #d53f8c; font-weight: bold; text-align: center; }
+    body { background-color: #f4f6f9; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
+    body.modal-open { overflow: hidden !important; height: 100vh !important; }
+
+    .container { max-width: 480px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); box-sizing: border-box; }
+    h3 { margin-top: 0; margin-bottom: 20px; color: #2c3e50; font-size: 22px; font-weight: 600; text-align: center; border-bottom: 2px solid #edf2f7; padding-bottom: 12px; }
+    .label-hint { font-size: 14px; color: #4a5568; font-weight: 600; margin-top: 14px; display: block; }
+    .required-badge { font-size: 12px; color: #007bff; background: #e6f0fa; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
+    .auto-badge { font-size: 12px; color: #28a745; background: #e8f5e9; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
+    .input-badge { font-size: 12px; color: #e056fd; background: #fae8ff; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
+    
+    input, select, .trigger-btn { width: 100%; padding: 12px; margin: 6px 0 12px 0; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; background-color: #fff; font-size: 15px; transition: all 0.2s; text-align: left; }
+    input:focus, select:focus { border-color: #3182ce; outline: none; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2); }
+    input:disabled, select:disabled { background-color: #edf2f7; cursor: not-allowed; border-color: #e2e8f0; color: #4a5568; font-weight: bold; }
+    
+    .trigger-btn { background-color: #fff; color: #a0aec0; cursor: pointer; border: 1px solid #cbd5e0; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .trigger-btn.active { color: #2d3748; font-weight: bold; border-color: #3182ce; background-color: #f7fafc; }
+    .trigger-btn:disabled { background-color: #edf2f7; color: #a0aec0; cursor: not-allowed; }
+
+    /* 弹窗核心优化：死死钉在屏幕上方，绝不往下拍 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: flex-start; padding: 20px 15px; box-sizing: border-box; }
+    .modal-content { background: #fff; width: 100%; max-width: 420px; height: 75vh; border-radius: 12px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideDownIn 0.15s ease-out; }
+    @keyframes slideDownIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; flex-shrink: 0; }
+    .modal-title { font-size: 15px; font-weight: bold; color: #2d3748; }
+    .modal-close { font-size: 14px; color: #fff; background: #e53e3e; cursor: pointer; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; }
+    
+    .modal-search-box { width: 100%; padding: 12px; border: 2px solid #3182ce; border-radius: 6px; box-sizing: border-box; font-size: 15px; margin-bottom: 12px; background-color: #fff; flex-shrink: 0; }
+
+    .grid-scroll-area { overflow-y: auto; flex-grow: 1; margin-top: 5px; display: flex; flex-direction: column; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
+    .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+    .data-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 12px 4px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.1s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .data-cell:hover { background: #e6f0fa; border-color: #bee3f8; color: #2b6cb0; }
+    .data-cell.recorded { background: #e2e8f0; border-color: #cbd5e0; color: #94a3b8; cursor: not-allowed; pointer-events: none; }
+    
+    .page-control-panel { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid #edf2f7; padding-top: 12px; flex-shrink: 0; }
+    .page-btn { background: #3182ce; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
+    .page-btn:disabled { background: #e2e8f0; color: #a0aec0; cursor: not-allowed; }
+    .page-info { font-size: 13px; color: #718096; font-weight: bold; }
+
+    button.submit-btn { background: #28a745; color: white; padding: 14px; width: 100%; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(40,167,69,0.2); }
+    button.submit-btn:hover { background: #218838; }
+    #msg { margin-top: 15px; color: #2b6cb0; font-weight: bold; text-align: center; font-size: 15px; }
+    
+    /* 恢复并美化底部导航、查看数据按钮区域 */
+    .nav-box { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
+    .nav-btn { flex: 1; background: #4a5568; color: white; text-align: center; padding: 12px; border-radius: 6px; font-size: 14px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background 0.2s; }
+    .nav-btn:hover { background: #2d3748; }
+    .nav-btn.view-data { background: #3182ce; }
+    .nav-btn.view-data:hover { background: #2b6cb0; }
+
+    .footer { text-align: center; color: #a0aec0; font-size: 13px; margin-top: 25px; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
   </style>
 </head>
-<body onload="loadDeviceCodes()">
+<body>
 
-<div class="main-container">
-  <h3>焊口数据录入</h3>
-  <label>装置代号</label>
-  <select id="device"><option value="">正在读取...</option></select>
-  <label>管道编号</label><input id="pipe" placeholder="请输入">
-  <label>焊口编号</label><input id="weldId" placeholder="请输入">
-  <label>焊工号</label><input id="welderId" placeholder="请输入">
-  <label>吋径</label><input id="inch" placeholder="请输入">
-  <label>焊接日期</label><input id="date" type="date">
-  <button onclick="save()">提交数据</button>
+<div class="container">
+  <h3>焊口数据录入首页</h3>
+  
+  <span class="label-hint">装置代号<span class="required-badge">1. 点击弹出选择</span></span>
+  <button id="deviceTrigger" class="trigger-btn active" onclick="openModal('device')">正在全量加载装置代号...</button>
+  <input type="hidden" id="device">
+  
+  <span class="label-hint">管道编号<span class="required-badge">2. 点击弹出选择</span></span>
+  <button id="pipeTrigger" class="trigger-btn" onclick="openModal('pipe')" disabled>请先选择装置代号</button>
+  <input type="hidden" id="pipe">
+  
+  <span class="label-hint">焊口编号<span class="required-badge">3. 点击弹出格子(智能查重)</span></span>
+  <button id="weldTrigger" class="trigger-btn" onclick="openModal('weld')" disabled>请先选择管道编号</button>
+  <input type="hidden" id="weldId">
+  
+  <div style="border-top: 2px dashed #edf2f7; margin-top: 20px; padding-top: 10px;"></div>
+
+  <span class="label-hint">吋径<span class="auto-badge">系统自动识别</span></span>
+  <input id="inch" placeholder="选择焊口后自动填充" disabled>
+  
+  <span class="label-hint">壁厚等级<span class="auto-badge">系统自动识别</span></span>
+  <input id="wall" placeholder="选择焊口后自动填充" disabled>
+  
+  <span class="label-hint">规格mm<span class="auto-badge">系统自动识别</span></span>
+  <input id="spec" placeholder="选择焊口后自动填充" disabled>
+  
+  <span class="label-hint">材质<span class="auto-badge">系统自动识别</span></span>
+  <input id="material" placeholder="选择焊口后自动填充" disabled>
+
+  <span class="label-hint">公称直径DN<span class="auto-badge">系统自动识别</span></span>
+  <input id="dn" placeholder="选择焊口后自动填充" disabled>
+  
+  <div style="border-top: 2px dashed #edf2f7; margin-top: 20px; padding-top: 10px;"></div>
+
+  <span class="label-hint">实际焊工号<span class="input-badge">手动录入项</span></span>
+  <input id="welderId" placeholder="请输入实际焊工号">
+  
+  <span class="label-hint">焊缝类型<span class="input-badge">固定选项</span></span>
+  <select id="type">
+    <option value="" disabled selected>-- 请选择焊缝类型 --</option>
+    <option value="BW">BW</option>
+    <option value="SW">SW</option>
+    <option value="D">D</option>
+  </select>
+  
+  <span class="label-hint">焊接方法<span class="input-badge">固定选项</span></span>
+  <select id="method">
+    <option value="" disabled selected>-- 请选择焊接方法 --</option>
+    <option value="GTAW+SMAW">GTAW+SMAW</option>
+    <option value="GTAW">GTAW</option>
+    <option value="SMAW">SMAW</option>
+  </select>
+  
+  <span class="label-hint">焊接日期<span class="auto-badge">当天时间自动识别</span></span>
+  <input id="date" type="date">
+  
+  <span class="label-hint">管工<span class="auto-badge">当前登录账户名自动识别</span></span>
+  <input id="worker" disabled placeholder="正在识别当前登录账号...">
+  
+  <button class="submit-btn" onclick="save()">提交数据</button>
   <p id="msg"></p>
-  <a href="data.html" class="nav-btn">📊 查看工程量日报看板</a>
+
+  <div class="nav-box">
+    <a href="data.html" class="nav-btn view-data">📊 进入数据大表看板</a>
+  </div>
+
+  <div class="footer">作者：景伟</div>
+</div>
+
+<div id="dataModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitleHint">请选择数据</div>
+      <button class="modal-close" onclick="closeModal()">关闭</button>
+    </div>
+    
+    <input type="text" id="modalSearch" class="modal-search-box" placeholder="🔍 输入关键字进行筛选..." oninput="onSearchInput()">
+
+    <div class="grid-scroll-area">
+      <div id="modalGridContainer" class="data-grid"></div>
+    </div>
+
+    <div class="page-control-panel">
+      <button id="prevPageBtn" class="page-btn" onclick="changePage(-1)">上一页</button>
+      <span id="pageInfoDisplay" class="page-info">第 1 / 1 页</span>
+      <button id="nextPageBtn" class="page-btn" onclick="changePage(1)">下一页</button>
+    </div>
+  </div>
 </div>
 
 <script>
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
-  const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
+  const BASE_URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/";
 
-  window.addEventListener('pageshow', () => { document.getElementById('date').value = new Date().toISOString().split('T')[0]; loadDeviceCodes(); });
+  let validDevices = [];
+  let validPipes = [];
+  let validWelds = []; 
+  
+  let currentModalType = "";
+  let filteredDataList = []; 
+  let currentPage = 1;
+  const PAGE_SIZE = 12; 
 
-  async function loadDeviceCodes() {
-    const sel = document.getElementById('device');
-    const res = await fetch(URL + "?select=装置代号", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-999" }});
-    const data = await res.json();
-    const codes = [...new Set(data.map(i => i["装置代号"]))].filter(Boolean).sort();
-    sel.innerHTML = '<option value="">-- 请选择装置代号 --</option>';
-    codes.forEach(c => { let o = document.createElement('option'); o.value = c; o.text = c; sel.appendChild(o); });
+  window.addEventListener('DOMContentLoaded', () => {
+    initSystem();
+  });
+
+  function initSystem() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+
+    let currentLoggedInUser = "jingwei"; 
+    try {
+      const sessionUser = localStorage.getItem('supabase.auth.username') || localStorage.getItem('current_user_pinyin');
+      if (sessionUser) currentLoggedInUser = sessionUser;
+    } catch(e) {}
+    document.getElementById('worker').value = currentLoggedInUser;
+
+    loadAllDevices();
+  }
+
+  async function loadAllDevices() {
+    const devBtn = document.getElementById('deviceTrigger');
+    try {
+      const res = await fetch(BASE_URL + "v_unique_devices?select=*", {
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+      });
+      const rawData = await res.json();
+      validDevices = rawData.map(item => item["装置代号"]).filter(Boolean);
+      devBtn.innerText = "-- 点击弹出格子选择装置 --";
+    } catch (err) {
+      devBtn.innerText = "装置代号加载失败，请刷新页面";
+    }
+  }
+
+  async function openModal(type) {
+    currentModalType = type;
+    document.getElementById('modalSearch').value = ''; 
+    currentPage = 1;
+    
+    const titleHint = document.getElementById('modalTitleHint');
+    const searchInput = document.getElementById('modalSearch');
+
+    if (type === 'device') {
+      titleHint.innerText = "请选择装置代号 :";
+      searchInput.placeholder = "🔍 输入装置代号快捷筛选...";
+      filteredDataList = [...validDevices];
+      renderCurrentPageGrid();
+    } 
+    else if (type === 'pipe') {
+      titleHint.innerText = "请选择管道编号 :";
+      searchInput.placeholder = "🔍 输入管道编号快捷筛选...";
+      filteredDataList = [...validPipes];
+      renderCurrentPageGrid();
+    } 
+    else if (type === 'weld') {
+      titleHint.innerText = "请选择焊口号（12个一页） :";
+      searchInput.placeholder = "🔍 输入焊口号快捷筛选(如01)...";
+      
+      const devVal = document.getElementById('device').value;
+      const pipeVal = document.getElementById('pipe').value;
+      document.getElementById('weldTrigger').innerText = "正在智能拉取查重...";
+
+      try {
+        const resWelds = await fetch(BASE_URL + `v_unique_welds?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(devVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=*`, {
+          headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+        });
+        const rawWelds = await resWelds.json();
+        const rawWeldNames = rawWelds.map(item => item["焊口编号"]).filter(Boolean);
+        
+        const resRecorded = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(devVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7,%E5%AE%9E%E9%99%85%E7%84%8A%E5%B7%A5%E5%8F%B7`, {
+          headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+        });
+        const rawRecorded = await resRecorded.json();
+        const recordedWeldIds = rawRecorded
+          .filter(item => item["实际焊工号"] && item["实际焊工号"].trim() !== "")
+          .map(item => item["焊口编号"]);
+
+        validWelds = rawWeldNames.map(wName => {
+          return {
+            weldName: wName,
+            isRecorded: recordedWeldIds.includes(wName)
+          };
+        });
+
+        filteredDataList = [...validWelds];
+        
+        if (filteredDataList.length === 0) {
+          document.getElementById('modalGridContainer').innerHTML = '<div style="grid-column: span 3; text-align:center; color:#a0aec0; padding:20px;">该管道下未配置任何理论焊口</div>';
+          document.getElementById('weldTrigger').innerText = "该管道下无焊口";
+        } else {
+          renderCurrentPageGrid();
+          document.getElementById('weldTrigger').innerText = "-- 点击弹出格子选择焊口 --";
+        }
+      } catch (err) {
+        document.getElementById('weldTrigger').innerText = "焊口加载失败";
+        return;
+      }
+    }
+
+    document.body.classList.add('modal-open');
+    document.getElementById('dataModal').style.display = 'flex';
+    
+    setTimeout(() => { searchInput.focus(); }, 100);
+  }
+
+  function renderCurrentPageGrid() {
+    const container = document.getElementById('modalGridContainer');
+    container.innerHTML = '';
+
+    const totalItems = filteredDataList.length;
+    const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+    
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    const endIndex = Math.min(startIndex + PAGE_SIZE, totalItems);
+    const pageData = filteredDataList.slice(startIndex, endIndex);
+
+    pageData.forEach(item => {
+      let cell = document.createElement('div');
+      
+      if (currentModalType === 'device') {
+        cell.className = 'data-cell';
+        cell.innerText = item;
+        cell.onclick = () => selectDevice(item);
+      } 
+      else if (currentModalType === 'pipe') {
+        cell.className = 'data-cell';
+        cell.innerText = item;
+        cell.onclick = () => selectPipe(item);
+      } 
+      else if (currentModalType === 'weld') {
+        if (item.isRecorded) {
+          cell.className = 'data-cell recorded';
+          cell.innerText = item.weldName + " [已录]";
+        } else {
+          cell.className = 'data-cell';
+          cell.innerText = item.weldName;
+          cell.onclick = () => selectWeld(item.weldName);
+        }
+      }
+      container.appendChild(cell);
+    });
+
+    document.getElementById('pageInfoDisplay').innerText = `第 ${currentPage} / ${totalPages} 页 (共 ${totalItems} 条)`;
+    document.getElementById('prevPageBtn').disabled = (currentPage === 1);
+    document.getElementById('nextPageBtn').disabled = (currentPage === totalPages);
+  }
+
+  function onSearchInput() {
+    const kw = document.getElementById('modalSearch').value.toLowerCase().trim();
+    currentPage = 1; 
+
+    if (currentModalType === 'device') {
+      filteredDataList = validDevices.filter(dev => dev.toLowerCase().includes(kw));
+    } 
+    else if (currentModalType === 'pipe') {
+      filteredDataList = validPipes.filter(pipe => pipe.toLowerCase().includes(kw));
+    } 
+    else if (currentModalType === 'weld') {
+      filteredDataList = validWelds.filter(w => w.weldName.toLowerCase().includes(kw));
+    }
+
+    renderCurrentPageGrid();
+  }
+
+  function changePage(direction) {
+    currentPage += direction;
+    renderCurrentPageGrid();
+  }
+
+  function closeModal() {
+    document.body.classList.remove('modal-open');
+    document.getElementById('dataModal').style.display = 'none';
+  }
+
+  async function selectDevice(devVal) {
+    document.getElementById('device').value = devVal;
+    document.getElementById('deviceTrigger').innerText = "已选装置: " + devVal;
+    closeModal();
+    clearBelow('device');
+
+    const pipeBtn = document.getElementById('pipeTrigger');
+    pipeBtn.innerText = "正在精准加载管道列表...";
+
+    try {
+      const res = await fetch(BASE_URL + `v_unique_pipes?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(devVal)}&select=*`, {
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+      });
+      const rawData = await res.json();
+      validPipes = rawData.map(item => item["管道编号"]).filter(Boolean);
+      
+      pipeBtn.disabled = false;
+      pipeBtn.className = "trigger-btn active";
+      pipeBtn.innerText = "-- 点击弹出格子选择管道 --";
+    } catch (err) {
+      pipeBtn.innerText = "管道加载失败";
+    }
+  }
+
+  function selectPipe(pipeVal) {
+    document.getElementById('pipe').value = pipeVal;
+    document.getElementById('pipeTrigger').innerText = "已选管道: " + pipeVal;
+    closeModal();
+    clearBelow('pipe');
+
+    const weldBtn = document.getElementById('weldTrigger');
+    weldBtn.disabled = false;
+    weldBtn.className = "trigger-btn active";
+    weldBtn.innerText = "-- 点击弹出格子选择焊口 --";
+  }
+
+  async function selectWeld(weldVal) {
+    document.getElementById('weldId').value = weldVal;
+    document.getElementById('weldTrigger').innerText = "已选焊口: " + weldVal;
+    closeModal();
+
+    const devVal = document.getElementById('device').value;
+    const pipeVal = document.getElementById('pipe').value;
+    document.getElementById('msg').innerText = "正在智能识别并提取焊口数据...";
+
+    try {
+      const res = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(devVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(weldVal)}&limit=1`, {
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+      });
+      const rawData = await res.json();
+      
+      if (rawData && rawData.length > 0) {
+        const item = rawData[0];
+        document.getElementById('inch').value = item["吋径"] || '';
+        document.getElementById('wall').value = item["壁厚等级"] || '';
+        document.getElementById('spec').value = item["规格mm"] || '';
+        document.getElementById('material').value = item["材质"] || '';
+        document.getElementById('dn').value = item["公称直径DN"] || '';
+        document.getElementById('msg').innerText = "✨ 该焊口属性智能提取填入成功！";
+      }
+    } catch (err) {
+      document.getElementById('msg').innerText = "自动调取属性失败，请检查网络";
+    }
+  }
+
+  function clearBelow(level) {
+    if (level === 'device') {
+      document.getElementById('pipe').value = '';
+      const pipeBtn = document.getElementById('pipeTrigger');
+      pipeBtn.disabled = true;
+      pipeBtn.className = "trigger-btn";
+      pipeBtn.innerText = "请先选择装置代号";
+    }
+    if (level === 'device' || level === 'pipe') {
+      document.getElementById('weldId').value = '';
+      const weldBtn = document.getElementById('weldTrigger');
+      weldBtn.disabled = true;
+      weldBtn.className = "trigger-btn";
+      weldBtn.innerText = "请先选择管道编号";
+      
+      document.getElementById('inch').value = '';
+      document.getElementById('wall').value = '';
+      document.getElementById('spec').value = '';
+      document.getElementById('material').value = '';
+      document.getElementById('dn').value = '';
+      document.getElementById('msg').innerText = '';
+    }
   }
 
   async function save() {
-    const data = { "装置代号": document.getElementById('device').value, "管道编号": document.getElementById('pipe').value, "焊口编号": document.getElementById('weldId').value, "实际焊工号": document.getElementById('welderId').value, "吋径": document.getElementById('inch').value, "焊接日期": document.getElementById('date').value };
-    if(!data["装置代号"]) return alert("请选择装置");
-    const res = await fetch(URL, { method: "POST", headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Content-Type": "application/json", "Prefer": "return=minimal" }, body: JSON.stringify(data) });
-    if(res.ok) { document.getElementById('msg').innerText = "✅ 提交成功！"; document.querySelectorAll('input').forEach(i => { if(i.type !== 'date') i.value = ''; }); }
+    const data = {
+      "装置代号": document.getElementById('device').value,
+      "管道编号": document.getElementById('pipe').value,
+      "焊口编号": document.getElementById('weldId').value,
+      "吋径": document.getElementById('inch').value,
+      "壁厚等级": document.getElementById('wall').value,
+      "规格mm": document.getElementById('spec').value,
+      "材质": document.getElementById('material').value,
+      "公称直径DN": document.getElementById('dn').value,
+      
+      "实际焊工号": document.getElementById('welderId').value,
+      "焊缝类型(必填）": document.getElementById('type').value,
+      "焊接方法": document.getElementById('method').value,
+      "焊接日期": document.getElementById('date').value,
+      "管工": document.getElementById('worker').value
+    };
+
+    if (!data["装置代号"] || !data["管道编号"] || !data["焊口编号"]) {
+      alert("提交失败：请点击大格子完整选定 [装置]、[管道] 和 [焊口] ！");
+      return;
+    }
+    if (!data["焊缝类型(必填）"] || !data["焊接方法"] || !data["实际焊工号"]) {
+      alert("提交失败：请完整填写 [实际焊工号]、[焊缝类型] 和 [焊接方法] ！");
+      return;
+    }
+
+    document.getElementById('msg').innerText = "正在执行终任防重锁校验...";
+    
+    try {
+      const checkRes = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(data["装置代号"])}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(data["管道编号"])}&%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(data["焊口编号"])}&select=id,%E5%AE%9E%E9%99%85%E7%84%8A%E5%B7%A5%E5%8F%B7`, {
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+      });
+      const checkData = await checkRes.json();
+      
+      const isAlreadyRecorded = checkData.some(item => item["实际焊工号"] && item["实际焊工号"].trim() !== "");
+      if (isAlreadyRecorded) {
+        alert(`❌ 提交失败：焊口 [ ${data["焊口编号"]} ] 刚刚已被录入，请勿重复提交！`);
+        document.getElementById('msg').innerText = "⚠️ 触发数据防重锁，录入已被拦截。";
+        return;
+      }
+
+      document.getElementById('msg').innerText = "防重校验通过，正在写入...";
+
+      const res = await fetch(BASE_URL + "weld_data?apikey=" + KEY, {
+        method: "POST",
+        headers: { 
+          "apikey": KEY, 
+          "Authorization": "Bearer " + KEY, 
+          "Content-Type": "application/json", 
+          "Prefer": "return=minimal" 
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if(res.ok) {
+        document.getElementById('msg').innerText = "🎉 焊口数据成功录入主表！";
+        document.getElementById('welderId').value = '';
+        document.getElementById('type').value = '';
+        document.getElementById('method').value = '';
+        clearBelow('device');
+        document.getElementById('device').value = '';
+        document.getElementById('deviceTrigger').innerText = "-- 点击弹出格子选择装置 --";
+      } else {
+        document.getElementById('msg').innerText = "提交失败: " + await res.text();
+      }
+    } catch (err) {
+      document.getElementById('msg').innerText = "网络错误: " + err.message;
+    }
   }
 </script>
+
 </body>
 </html>
