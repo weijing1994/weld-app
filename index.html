@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>焊口录入系统</title>
+  <title>焊口录入</title>
   <style>
     body { background: #f4f6f9; padding: 15px; font-family: sans-serif; }
     .container { max-width: 450px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; }
@@ -19,7 +19,7 @@
 <div class="container">
   <h3>焊口录入</h3>
   
-  <div class="form-group"><label>装置代号</label><select id="device"><option value="">正在读取...</option></select></div>
+  <div class="form-group"><label>装置代号</label><select id="device"><option value="">请选择...</option></select></div>
   <div class="form-group"><label>管道编号</label><input id="pipe"></div>
   <div class="form-group"><label>焊口编号</label><input id="weldId"></div>
   <div class="form-group"><label>焊工号</label><input id="welderId"></div>
@@ -28,7 +28,7 @@
   <div class="form-group"><label>焊接日期</label><input id="date" type="date"></div>
 
   <button onclick="save()">提交</button>
-  <a href="data.html" class="nav-btn">查看工程量日报看板</a>
+  <a href="data.html" class="nav-btn">查看日报看板</a>
 </div>
 
 <script>
@@ -37,10 +37,10 @@
 
   window.onload = () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    loadDeviceCodes();
+    loadDevices();
   };
 
-  async function loadDeviceCodes() {
+  async function loadDevices() {
     const res = await fetch(URL + "?select=装置代号", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY }});
     const data = await res.json();
     const codes = [...new Set(data.map(i => i["装置代号"]))].filter(Boolean).sort();
@@ -58,3 +58,20 @@
       "材质": document.getElementById('material').value,
       "焊接日期": document.getElementById('date').value
     };
+    
+    if(!data["装置代号"] || !data["焊口编号"]) { alert("请填必填项"); return; }
+    
+    const res = await fetch(URL, {
+      method: "POST",
+      headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    if(res.ok) {
+      alert("提交成功");
+      location.reload(); // 刷新页面恢复初始状态
+    } else { alert("提交失败"); }
+  }
+</script>
+</body>
+</html>
