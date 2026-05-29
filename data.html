@@ -2,63 +2,35 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>工程量日报看板</title>
+  <title>日报看板</title>
   <style>
-    body { padding: 10px; background: #f4f6f9; font-family: sans-serif; font-size: 14px; }
-    .card { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: center; }
-    th { background: #edf2f7; }
-    .highlight { color: #e53e3e; font-weight: bold; }
-    .back-btn { display: inline-block; padding: 8px 12px; background: #718096; color: white; text-decoration: none; border-radius: 6px; }
+    /* 样式隔离：所有样式以 report- 开头 */
+    .report-body { padding: 15px; background: #f4f6f9; font-family: sans-serif; margin: 0; }
+    .report-card { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .report-th, .report-td { border: 1px solid #e2e8f0; padding: 8px; text-align: center; }
+    .report-th { background: #edf2f7; }
+    .report-back { display: inline-block; padding: 10px 20px; background: #718096; color: white; text-decoration: none; border-radius: 6px; }
   </style>
 </head>
-<body>
-<div class="card">
-  <a href="index.html" class="back-btn">← 返回</a>
-  <h3>📊 工程量日报看板</h3>
-  <input type="date" id="dateFilter" onchange="refreshData()" style="width:100%; padding:10px;">
-</div>
-<div class="card">
-  <table id="statTable">
-    <thead><tr><th>装置</th><th>当日吋数</th><th>当日道数</th><th>累计吋数</th><th>完成率</th></tr></thead>
-    <tbody id="statBody"><tr><td colspan="5">加载数据中...</td></tr></tbody>
-  </table>
-</div>
-<div class="card">
-  <h3>焊工任务分配</h3>
-  <table id="welderTable">
-    <thead><tr><th>焊工号</th><th>当日(吋)</th></tr></thead>
-    <tbody id="welderBody"></tbody>
-  </table>
-</div>
+<body class="report-body">
+  <div class="report-card">
+    <a href="index.html" class="report-back">← 返回首页</a>
+    <h3 style="margin:10px 0;">工程量日报</h3>
+    <input type="date" id="dateFilter" onchange="refreshData()" style="width:100%; padding:10px;">
+  </div>
+  <div class="report-card">
+    <table class="report-table"><thead id="head"><tr><th>装置</th><th>吋数</th><th>完成率</th></tr></thead><tbody id="body"></tbody></table>
+  </div>
 <script>
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
-  const BASE_URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/";
-  const PLAN = { "一号装置": 500, "二号装置": 800 };
+  const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
 
   async function refreshData() {
     const d = document.getElementById('dateFilter').value;
-    const [r1, r2] = await Promise.all([
-      fetch(`${BASE_URL}weld_data?焊接日期=eq.${d}`, {headers:{"apikey":KEY,"Authorization":"Bearer "+KEY}}),
-      fetch(`${BASE_URL}weld_data?select=装置代号,吋径`, {headers:{"apikey":KEY,"Authorization":"Bearer "+KEY}})
-    ]);
-    const d1 = await r1.json(), d2 = await r2.json();
-    let stats = {}, welders = {};
-    d1.forEach(i => {
-      let dev = i['装置代号'], inch = parseFloat(i['吋径']||0);
-      if(!stats[dev]) stats[dev] = {dayInch:0, dayCount:0, total:0};
-      stats[dev].dayInch += inch; stats[dev].dayCount += 1;
-      welders[i['实际焊工号']] = (welders[i['实际焊工号']] || 0) + inch;
-    });
-    d2.forEach(i => { if(stats[i['装置代号']]) stats[i['装置代号']].total += parseFloat(i['吋径']||0); });
-    
-    document.getElementById('statBody').innerHTML = Object.keys(stats).map(dev => `<tr>
-      <td>${dev}</td><td>${stats[dev].dayInch.toFixed(1)}</td><td>${stats[dev].dayCount}</td>
-      <td>${stats[dev].total.toFixed(1)}</td><td class="highlight">${((stats[dev].total/(PLAN[dev]||1000))*100).toFixed(1)}%</td>
-    </tr>`).join('');
-    document.getElementById('welderBody').innerHTML = Object.keys(welders).map(w => `<tr><td>${w}</td><td>${welders[w].toFixed(1)}</td></tr>`).join('');
+    const res = await fetch(URL + "?焊接日期=eq." + d, { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY }});
+    const data = await res.json();
+    document.getElementById('body').innerHTML = data.map(i => `<tr><td>${i['装置代号']}</td><td>${i['吋径']}</td><td>--</td></tr>`).join('');
   }
   document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
   refreshData();
