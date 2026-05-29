@@ -38,6 +38,9 @@
     .weld-cell.selected { background: #3182ce; border-color: #3182ce; color: #fff; }
     .weld-cell.hidden { display: none; }
     
+    /* 新增：已录入焊口的灰色锁死样式 */
+    .weld-cell.recorded { background: #e2e8f0; border-color: #cbd5e0; color: #94a3b8; cursor: not-allowed; pointer-events: none; }
+    
     button.submit-btn { background: #28a745; color: white; padding: 14px; width: 100%; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(40,167,69,0.2); }
     button.submit-btn:hover { background: #218838; }
     #msg { margin-top: 15px; color: #2b6cb0; font-weight: bold; text-align: center; font-size: 15px; }
@@ -57,7 +60,7 @@
   <input id="pipe" list="pipe-list" placeholder="请先输入/选择装置" oninput="onPipeChange()" disabled>
   <datalist id="pipe-list"></datalist>
   
-  <span class="label-hint">焊口编号<span class="required-badge">3. 点击弹出格子(支持搜索)</span></span>
+  <span class="label-hint">焊口编号<span class="required-badge">3. 点击弹出格子(智能查重)</span></span>
   <button id="weldTrigger" class="weld-trigger-btn" onclick="openWeldModal()" disabled>请先输入/选择管道</button>
   <input type="hidden" id="weldId">
   
@@ -198,6 +201,7 @@
     }
   }
 
+  // 【核心功能重构】：拉取焊口的同时，查重并标记灰色
   async function onPipeChange() {
     const deviceVal = document.getElementById('device').value;
     const pipeVal = document.getElementById('pipe').value;
@@ -206,15 +210,26 @@
     clearBelow('pipe');
 
     if (!validPipes.includes(pipeVal)) return;
-    triggerBtn.innerText = "正在获取焊口格子列表...";
+    triggerBtn.innerText = "正在获取并智能查重焊口...";
     
     try {
-      const res = await fetch(BASE_URL + `v_unique_welds?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=*`, {
+      // 1. 获取该管道下的全部理论焊口
+      const resWelds = await fetch(BASE_URL + `v_unique_welds?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=*`, {
         headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
       });
-      const rawData = await res.json();
-      validWelds = rawData.map(item => item["焊口编号"]).filter(Boolean);
+      const rawWelds = await resWelds.json();
+      validWelds = rawWelds.map(item => item["焊口编号"]).filter(Boolean);
       
+      // 2. 核心查重：去大表里查一下当前这条管道，有哪些焊口已经被录入过了（实际焊工号不为空或存在记录的）
+      const resRecorded = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7,%E5%AE%9E%E9%99%85%E7%84%8A%E5%B7%A5%E5%8F%B7`, {
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+      });
+      const rawRecorded = await resRecorded.json();
+      // 提取出所有确实已经被成功录入录过的焊口号清单
+      const recordedWeldIds = rawRecorded
+        .filter(item => item["实际焊工号"] && item["实际焊工号"].trim() !== "")
+        .map(item => item["焊口编号"]);
+
       const gridContainer = document.getElementById('weldGridContainer');
       gridContainer.innerHTML = '';
       
@@ -223,12 +238,21 @@
         return;
       }
 
+      // 3. 动态渲染格子，并注入防重逻辑
       validWelds.forEach(weld => {
         let cell = document.createElement('div');
-        cell.className = 'weld-cell';
-        cell.innerText = weld;
         cell.setAttribute('data-weld', weld.toLowerCase());
-        cell.onclick = () => selectWeld(weld, cell);
+        
+        if (recordedWeldIds.includes(weld)) {
+          // 如果已被录入过：变灰、打标签、禁用点击
+          cell.className = 'weld-cell recorded';
+          cell.innerText = weld + " [已录]";
+        } else {
+          // 未录入过：正常高亮可选
+          cell.className = 'weld-cell';
+          cell.innerText = weld;
+          cell.onclick = () => selectWeld(weld, cell);
+        }
         gridContainer.appendChild(cell);
       });
 
@@ -341,14 +365,31 @@
       alert("提交失败：请按照规范，点击大格子选择合法的 [焊口编号] ！");
       return;
     }
-    if (!data["焊缝类型(必填）"] || !data["焊接方法"]) {
-      alert("提交失败：请选择 [焊缝类型] 和 [焊接方法] ！");
+    if (!data["焊缝类型(必填）"] || !data["焊接方法"] || !data["实际焊工号"]) {
+      alert("提交失败：请完整填写 [实际焊工号]、[焊缝类型] 和 [焊接方法] ！");
       return;
     }
 
-    document.getElementById('msg').innerText = "提交中...";
+    document.getElementById('msg').innerText = "正在执行终极防重锁校验...";
     
     try {
+      // 【终极后端校验锁】：点击提交的瞬间，死锁查重一次数据库，彻底防止多人并发冲突
+      const checkRes = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(data["装置代号"])}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(data["管道编号"])}&%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(data["焊口编号"])}&select=id,%E5%AE%9E%E9%99%85%E7%84%8A%E5%B7%A5%E5%8F%B7`, {
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+      });
+      const checkData = await checkRes.json();
+      
+      // 判断大表里当前这条焊口记录是否已经有实际焊工号了
+      const isAlreadyRecorded = checkData.some(item => item["实际焊工号"] && item["实际焊工号"].trim() !== "");
+      if (isAlreadyRecorded) {
+        alert(`❌ 提交失败：焊口 [ ${data["焊口编号"]} ] 刚刚已被其他人或您录入，请勿重复录入内容！`);
+        document.getElementById('msg').innerText = "⚠️ 触发数据防重锁，录入已被拦截。";
+        return;
+      }
+
+      // 通过双重防重校验，允许安全写入
+      document.getElementById('msg').innerText = "防重校验通过，正在写入...";
+
       const res = await fetch(BASE_URL + "weld_data?apikey=" + KEY, {
         method: "POST",
         headers: { 
