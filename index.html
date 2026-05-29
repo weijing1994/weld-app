@@ -3,86 +3,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>焊口录入系统</title>
+  <title>焊口录入</title>
   <style>
-    /* 强力重置样式，防止跳转后的样式污染 */
-    body { background-color: #f4f6f9; padding: 10px; font-family: sans-serif; margin: 0; }
-    .container { max-width: 500px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    h3 { text-align: center; color: #333; margin-top: 0; }
-    
-    /* 统一所有输入控件的样式 */
-    .form-group { margin-bottom: 15px; }
-    label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
-    input, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-    
-    button { background: #28a745; color: white; padding: 15px; width: 100%; border: none; border-radius: 8px; font-size: 18px; margin-top: 10px; cursor: pointer; }
-    .nav-btn { display: block; background: #3182ce; color: white; text-align: center; padding: 14px; border-radius: 8px; margin-top: 15px; text-decoration: none; font-weight: bold; }
+    /* 全局重置 */
+    body { background-color: #f4f6f9; margin: 0; padding: 15px; font-family: sans-serif; }
+    /* 样式隔离：所有样式仅作用于 .main-container */
+    .main-container { max-width: 480px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .main-container h3 { text-align: center; color: #2d3748; margin-top: 0; }
+    .main-container label { display: block; font-weight: bold; margin: 10px 0 5px; color: #4a5568; }
+    .main-container select, .main-container input { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+    .main-container button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 18px; margin-top: 20px; font-weight: bold; }
+    .main-container .nav-btn { display: block; background: #3182ce; color: white; text-align: center; padding: 14px; border-radius: 6px; margin-top: 15px; text-decoration: none; font-weight: bold; }
     #msg { margin-top: 15px; color: #d53f8c; font-weight: bold; text-align: center; }
   </style>
 </head>
-<body>
+<body onload="loadDeviceCodes()">
 
-<div class="container">
+<div class="main-container">
   <h3>焊口数据录入</h3>
-  <div class="form-group">
-    <label>装置代号</label>
-    <select id="device"><option value="">正在读取...</option></select>
-  </div>
-  <div class="form-group"><label>管道编号</label><input id="pipe" placeholder="输入管道编号"></div>
-  <div class="form-group"><label>焊口编号</label><input id="weldId" placeholder="输入焊口编号"></div>
-  <div class="form-group"><label>焊工号</label><input id="welderId" placeholder="输入焊工号"></div>
-  <div class="form-group"><label>吋径</label><input id="inch" placeholder="输入吋径"></div>
-  <div class="form-group"><label>材质</label><input id="material" placeholder="输入材质"></div>
-  <div class="form-group"><label>焊接日期</label><input id="date" type="date"></div>
-
+  <label>装置代号</label>
+  <select id="device"><option value="">正在读取...</option></select>
+  <label>管道编号</label><input id="pipe" placeholder="请输入">
+  <label>焊口编号</label><input id="weldId" placeholder="请输入">
+  <label>焊工号</label><input id="welderId" placeholder="请输入">
+  <label>吋径</label><input id="inch" placeholder="请输入">
+  <label>焊接日期</label><input id="date" type="date">
   <button onclick="save()">提交数据</button>
   <p id="msg"></p>
-  <a href="data.html?v=1" class="nav-btn">📊 进入工程量日报看板</a>
+  <a href="data.html" class="nav-btn">📊 查看工程量日报看板</a>
 </div>
 
 <script>
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
   const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
 
-  // 页面显示时强制重新加载数据，解决跳转回来不正常的问题
-  window.addEventListener('pageshow', function() {
-    document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    loadDeviceCodes();
-  });
+  window.addEventListener('pageshow', () => { document.getElementById('date').value = new Date().toISOString().split('T')[0]; loadDeviceCodes(); });
 
   async function loadDeviceCodes() {
     const sel = document.getElementById('device');
-    try {
-      const res = await fetch(URL + "?select=装置代号", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-999" }});
-      const data = await res.json();
-      const codes = [...new Set(data.map(i => i["装置代号"]))].filter(Boolean).sort();
-      sel.innerHTML = '<option value="">-- 请选择装置代号 --</option>';
-      codes.forEach(c => { let o = document.createElement('option'); o.value = c; o.text = c; sel.appendChild(o); });
-    } catch(e) { sel.innerHTML = '<option value="">读取失败</option>'; }
+    const res = await fetch(URL + "?select=装置代号", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-999" }});
+    const data = await res.json();
+    const codes = [...new Set(data.map(i => i["装置代号"]))].filter(Boolean).sort();
+    sel.innerHTML = '<option value="">-- 请选择装置代号 --</option>';
+    codes.forEach(c => { let o = document.createElement('option'); o.value = c; o.text = c; sel.appendChild(o); });
   }
 
   async function save() {
-    const data = {
-      "装置代号": document.getElementById('device').value,
-      "管道编号": document.getElementById('pipe').value,
-      "焊口编号": document.getElementById('weldId').value,
-      "实际焊工号": document.getElementById('welderId').value,
-      "吋径": document.getElementById('inch').value,
-      "材质": document.getElementById('material').value,
-      "焊接日期": document.getElementById('date').value
-    };
-    if(!data["装置代号"]) { alert("请选择装置！"); return; }
-    document.getElementById('msg').innerText = "提交中...";
-    const res = await fetch(URL, {
-      method: "POST",
-      headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Content-Type": "application/json", "Prefer": "return=minimal" },
-      body: JSON.stringify(data)
-    });
-    if(res.ok) {
-      document.getElementById('msg').innerText = "✅ 提交成功！";
-      // 清空输入框但保留下拉框
-      document.querySelectorAll('input').forEach(i => { if(i.type !== 'date') i.value = ''; });
-    } else { document.getElementById('msg').innerText = "提交失败"; }
+    const data = { "装置代号": document.getElementById('device').value, "管道编号": document.getElementById('pipe').value, "焊口编号": document.getElementById('weldId').value, "实际焊工号": document.getElementById('welderId').value, "吋径": document.getElementById('inch').value, "焊接日期": document.getElementById('date').value };
+    if(!data["装置代号"]) return alert("请选择装置");
+    const res = await fetch(URL, { method: "POST", headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Content-Type": "application/json", "Prefer": "return=minimal" }, body: JSON.stringify(data) });
+    if(res.ok) { document.getElementById('msg').innerText = "✅ 提交成功！"; document.querySelectorAll('input').forEach(i => { if(i.type !== 'date') i.value = ''; }); }
   }
 </script>
 </body>
