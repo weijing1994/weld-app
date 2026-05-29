@@ -1,70 +1,52 @@
-<script>
-  // --- 1. 配置信息 (保持你的原样) ---
-  const TABLE_NAME = 'weld_data';
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
-  const SUPABASE_URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/";
-  
-  // --- 2. 全局变量 ---
-  let allDevice = [];
-  let pipeDict = {};
-  let weldDict = {};
-  let currentModalType = '';
-  let tempPipeList = [];
-  let tempWeldList = [];
-
-  // --- 3. 初始化加载 (彻底重置逻辑) ---
-  window.onload = async () => {
+window.onload = async () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    try {
-      console.log("正在尝试初始化加载装置...");
-      // 仅获取装置代号，不加任何复杂参数，如果这都不行，说明数据库没权限或名字不对
-      const res = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=装置代号`, {
-        headers: { 
-          'apikey': SUPABASE_KEY, 
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await res.json();
-      console.log("初始化获取数据:", data);
-      
-      if (Array.isArray(data)) {
-        // 在前端做去重，比后端简单可靠
-        allDevice = [...new Set(data.map(x => x['装置代号']).filter(Boolean))].sort();
-        console.log("装置列表已加载:", allDevice);
-      } else {
-        console.error("数据格式错误，请检查Supabase表名是否为 weld_data，且该表是否有读取权限:", data);
+    
+    // 修正点：添加了 'Range': '0-19999'，告诉服务器一次性返回前 2 万条数据
+    const res = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=装置代号`, {
+      headers: { 
+        'apikey': SUPABASE_KEY, 
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Range': '0-19999' 
       }
-    } catch (e) {
-      console.error("加载失败:", e);
-    }
+    });
+    
+    const d = await res.json();
+    // 这里前端去重，保证所有装置都能显示
+    allDevice = [...new Set(d.map(x=>x['装置代号']).filter(Boolean))].sort();
   };
 
-  // --- 4. 弹窗打开逻辑 ---
   async function openModal(type) {
     currentModalType = type;
     document.getElementById('modalSearch').value = '';
     document.getElementById('modal').style.display = 'flex';
     
-    if (type === 'pipe') {
+    if(type === 'pipe'){
       const dev = document.getElementById('device').value;
-      if (!dev) return;
-      if (!pipeDict[dev]) {
-        // 请求管道：这里只加基础的筛选
+      if(!pipeDict[dev]){
+        // 修正点：同样添加了 'Range': '0-19999'
         const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=管道编号&装置代号=eq.${encodeURIComponent(dev)}`, {
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+          headers: { 
+            'apikey': SUPABASE_KEY, 
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Range': '0-19999' 
+          }
         });
-        const pArr = await r.json();
-        pipeDict[dev] = [...new Set(pArr.map(x => x['管道编号']).filter(Boolean))].sort();
+        let pArr = await r.json();
+        pipeDict[dev] = [...new Set(pArr.map(x=>x['管道编号']).filter(Boolean))].sort();
       }
       tempPipeList = [...pipeDict[dev]];
-    } else if (type === 'weld') {
+    }else if(type === 'weld'){
       const dev = document.getElementById('device').value;
       const pip = document.getElementById('pipe').value;
-      const key = dev + '_' + pip;
-      if (!weldDict[key]) {
+      const key = dev+'_'+pip;
+      if(!weldDict[key]){
+        // 修正点：同样添加了 'Range': '0-19999'
         const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=*&装置代号=eq.${encodeURIComponent(dev)}&管道编号=eq.${encodeURIComponent(pip)}`, {
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+          headers: { 
+            'apikey': SUPABASE_KEY, 
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Range': '0-19999' 
+          }
         });
         weldDict[key] = await r.json();
       }
@@ -72,82 +54,3 @@
     }
     renderModalList();
   }
-
-  // --- 5. 渲染列表 ---
-  function renderModalList() {
-    const kw = document.getElementById('modalSearch').value.toLowerCase();
-    const wrap = document.getElementById('modalList');
-    wrap.innerHTML = '';
-    let showArr = [];
-
-    if(currentModalType === 'device') showArr = allDevice.filter(s=>s.toLowerCase().includes(kw));
-    else if(currentModalType === 'pipe') showArr = tempPipeList.filter(s=>s.toLowerCase().includes(kw));
-    else if(currentModalType === 'weld') showArr = tempWeldList.filter(o=>o['焊口编号'] && o['焊口编号'].toLowerCase().includes(kw));
-
-    showArr.forEach(item => {
-      let dom = document.createElement('div');
-      dom.className = 'modal-item';
-      let text = (typeof item === 'string') ? item : item['焊口编号'];
-      
-      // 处理“已录”逻辑
-      if (typeof item === 'object' && item['实际焊工号']) {
-        dom.className += ' submitted';
-        text += ' [已录]';
-      }
-      
-      dom.innerText = text;
-      dom.onclick = () => { if(!dom.className.includes('submitted')) selectItem(item); };
-      wrap.appendChild(dom);
-    });
-  }
-
-  // --- 6. 其它功能函数 ---
-  function selectItem(item) {
-    if(currentModalType === 'device') {
-      document.getElementById('device').value = item;
-      document.getElementById('pipe').value = '';
-      document.getElementById('weldId').value = '';
-      clearAutoFields();
-      document.getElementById('pipe').disabled = false;
-    } else if(currentModalType === 'pipe') {
-      document.getElementById('pipe').value = item;
-      document.getElementById('weldId').value = '';
-      clearAutoFields();
-    } else {
-      document.getElementById('weldId').value = item['焊口编号'];
-      document.getElementById('inch').value = item['吋径']||'';
-      document.getElementById('wall').value = item['壁厚等级']||'';
-      document.getElementById('spec').value = item['规格mm']||'';
-      document.getElementById('material').value = item['材质']||'';
-      document.getElementById('dn').value = item['公称直径DN']||'';
-    }
-    closeModal();
-  }
-
-  function clearAutoFields(){
-    document.getElementById('inch').value=''; document.getElementById('wall').value='';
-    document.getElementById('spec').value=''; document.getElementById('material').value='';
-    document.getElementById('dn').value='';
-  }
-  function closeModal(){ document.getElementById('modal').style.display='none'; }
-  function openWeldSelect(){ if(document.getElementById('pipe').value) openModal('weld'); else alert('请先选择管道'); }
-
-  async function submitData() {
-    const payload = {
-        "装置代号": document.getElementById('device').value,
-        "管道编号": document.getElementById('pipe').value,
-        "焊口编号": document.getElementById('weldId').value,
-        "实际焊工号": document.getElementById('welderId').value,
-        "焊缝类型(必填）": document.getElementById('weldType').value,
-        "焊接方法": document.getElementById('method').value,
-        "焊接日期": document.getElementById('date').value,
-        "管工": document.getElementById('worker').value
-    };
-    const res = await fetch(`${SUPABASE_URL}${TABLE_NAME}`, {
-        method: "POST",
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", "Prefer": "return=representation" },
-        body: JSON.stringify(payload)
-    });
-    if(res.ok) alert("提交成功"); else alert("提交失败: " + await res.text());
-  }
-</script>
