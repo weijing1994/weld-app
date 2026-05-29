@@ -3,30 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>焊口模糊搜索录入系统</title>
+  <title>焊口智能化录入系统</title>
   <style>
     body { background-color: #f4f6f9; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
     .container { max-width: 480px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); box-sizing: border-box; }
     h3 { margin-top: 0; margin-bottom: 20px; color: #2c3e50; font-size: 22px; font-weight: 600; text-align: center; border-bottom: 2px solid #edf2f7; padding-bottom: 12px; }
     .label-hint { font-size: 14px; color: #4a5568; font-weight: 600; margin-top: 14px; display: block; }
     .required-badge { font-size: 12px; color: #007bff; background: #e6f0fa; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
-    .other-badge { font-size: 12px; color: #718096; background: #edf2f7; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
-    input { width: 100%; padding: 12px; margin: 6px 0 12px 0; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; background-color: #fff; font-size: 15px; transition: all 0.2s; }
-    input:focus { border-color: #3182ce; outline: none; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2); }
-    input:disabled { background-color: #edf2f7; cursor: not-allowed; border-color: #e2e8f0; color: #a0aec0; }
+    .auto-badge { font-size: 12px; color: #28a745; background: #e8f5e9; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
+    .input-badge { font-size: 12px; color: #e056fd; background: #fae8ff; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
+    input, select { width: 100%; padding: 12px; margin: 6px 0 12px 0; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; background-color: #fff; font-size: 15px; transition: all 0.2s; }
+    input:focus, select:focus { border-color: #3182ce; outline: none; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2); }
+    input:disabled, select:disabled { background-color: #edf2f7; cursor: not-allowed; border-color: #e2e8f0; color: #4a5568; font-weight: bold; }
     button { background: #28a745; color: white; padding: 14px; width: 100%; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(40,167,69,0.2); }
     button:hover { background: #218838; }
     #msg { margin-top: 15px; color: #2b6cb0; font-weight: bold; text-align: center; font-size: 15px; }
     .footer { text-align: center; color: #a0aec0; font-size: 13px; margin-top: 30px; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
   </style>
 </head>
-<body onload="initDeviceCodes()">
+<body onload="initSystem()">
 
 <div class="container">
   <h3>焊口数据录入</h3>
   
   <span class="label-hint">装置代号<span class="required-badge">1. 必选联动项</span></span>
-  <input id="device" list="device-list" placeholder="正在秒速加载全量装置..." oninput="onDeviceChange()">
+  <input id="device" list="device-list" placeholder="正在全量加载装置代号..." oninput="onDeviceChange()">
   <datalist id="device-list"></datalist>
   
   <span class="label-hint">管道编号<span class="required-badge">2. 必选联动项</span></span>
@@ -34,40 +35,52 @@
   <datalist id="pipe-list"></datalist>
   
   <span class="label-hint">焊口编号<span class="required-badge">3. 必选联动项</span></span>
-  <input id="weldId" list="weld-list" placeholder="请先输入/选择管道" disabled>
+  <input id="weldId" list="weld-list" placeholder="请先输入/选择管道" oninput="onWeldChange()" disabled>
   <datalist id="weld-list"></datalist>
   
-  <div style="border-top: 1px solid #edf2f7; margin-top: 15px; padding-top: 5px;"></div>
+  <div style="border-top: 2px dashed #edf2f7; margin-top: 20px; padding-top: 10px;"></div>
 
-  <span class="label-hint">实际焊工号<span class="other-badge">录入项</span></span>
+  <span class="label-hint">吋径<span class="auto-badge">系统自动识别</span></span>
+  <input id="inch" placeholder="根据焊口自动填充" disabled>
+  
+  <span class="label-hint">壁厚等级<span class="auto-badge">系统自动识别</span></span>
+  <input id="wall" placeholder="根据焊口自动填充" disabled>
+  
+  <span class="label-hint">规格mm<span class="auto-badge">系统自动识别</span></span>
+  <input id="spec" placeholder="根据焊口自动填充" disabled>
+  
+  <span class="label-hint">材质<span class="auto-badge">系统自动识别</span></span>
+  <input id="material" placeholder="根据焊口自动填充" disabled>
+
+  <span class="label-hint">公称直径DN<span class="auto-badge">系统自动识别</span></span>
+  <input id="dn" placeholder="根据焊口自动填充" disabled>
+  
+  <div style="border-top: 2px dashed #edf2f7; margin-top: 20px; padding-top: 10px;"></div>
+
+  <span class="label-hint">实际焊工号<span class="input-badge">手动录入项</span></span>
   <input id="welderId" placeholder="请输入实际焊工号">
   
-  <span class="label-hint">吋径<span class="other-badge">录入项</span></span>
-  <input id="inch" placeholder="请输入吋径">
+  <span class="label-hint">焊缝类型<span class="input-badge">固定选项</span></span>
+  <select id="type">
+    <option value="" disabled selected>-- 请选择焊缝类型 --</option>
+    <option value="BW">BW</option>
+    <option value="SW">SW</option>
+    <option value="D">D</option>
+  </select>
   
-  <span class="label-hint">壁厚等级<span class="other-badge">录入项</span></span>
-  <input id="wall" placeholder="请输入壁厚等级">
+  <span class="label-hint">焊接方法<span class="input-badge">固定选项</span></span>
+  <select id="method">
+    <option value="" disabled selected>-- 请选择焊接方法 --</option>
+    <option value="GTAW+SMAW">GTAW+SMAW</option>
+    <option value="GTAW">GTAW</option>
+    <option value="SMAW">SMAW</option>
+  </select>
   
-  <span class="label-hint">规格mm<span class="other-badge">录入项</span></span>
-  <input id="spec" placeholder="请输入规格mm">
-  
-  <span class="label-hint">材质<span class="other-badge">录入项</span></span>
-  <input id="material" placeholder="请输入材质">
-  
-  <span class="label-hint">焊缝类型<span class="other-badge">必填</span></span>
-  <input id="type" placeholder="请输入焊缝类型">
-  
-  <span class="label-hint">焊接方法<span class="other-badge">录入项</span></span>
-  <input id="method" placeholder="请输入焊接方法">
-  
-  <span class="label-hint">焊接日期<span class="other-badge">日期</span></span>
+  <span class="label-hint">焊接日期<span class="auto-badge">当天时间自动识别</span></span>
   <input id="date" type="date">
   
-  <span class="label-hint">公称直径DN<span class="other-badge">录入项</span></span>
-  <input id="dn" placeholder="请输入公称直径DN">
-  
-  <span class="label-hint">管工<span class="other-badge">录入项</span></span>
-  <input id="worker" placeholder="请输入管工姓名">
+  <span class="label-hint">管工<span class="auto-badge">当前登录账户名自动识别</span></span>
+  <input id="worker" disabled placeholder="正在识别当前登录账号...">
   
   <button onclick="save()">提交数据</button>
   <p id="msg"></p>
@@ -81,8 +94,36 @@
 
   let validDevices = [];
   let validPipes = [];
+  let validWelds = [];
 
-  // 1. 直接查询云端去重后的独立视图，彻底解决行数截断限制
+  // 初始化系统
+  function initSystem() {
+    // 1. 自动识别并锁定当前日期
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+
+    // 2. 【核心多账户识别逻辑】动态获取当前登录的 Supabase 账户名
+    // 以后你给他们开好拼音账号并做登录页后，这里会自动抓取他们登录的 username
+    // 目前没有登录时，系统会自动尝试读取本地模拟缓存，或者默认为开户调试主账号
+    let currentLoggedInUser = "jingwei"; 
+    
+    try {
+      // 预留接口：尝试从浏览器存储或Supabase Session中获取当前登录人的名字拼音
+      const sessionUser = localStorage.getItem('supabase.auth.username') || localStorage.getItem('current_user_pinyin');
+      if (sessionUser) {
+        currentLoggedInUser = sessionUser;
+      }
+    } catch(e) {
+      console.log("多账户认证接口就绪");
+    }
+    
+    document.getElementById('worker').value = currentLoggedInUser;
+
+    // 3. 加载全量装置
+    initDeviceCodes();
+  }
+
+  // 加载全量装置代号
   async function initDeviceCodes() {
     const deviceInput = document.getElementById('device');
     const deviceList = document.getElementById('device-list');
@@ -91,7 +132,6 @@
         headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
       });
       const rawData = await res.json();
-      
       validDevices = rawData.map(item => item["装置代号"]).filter(Boolean);
       
       deviceList.innerHTML = '';
@@ -100,36 +140,28 @@
         opt.value = code;
         deviceList.appendChild(opt);
       });
-      deviceInput.placeholder = "点击查看或输入关键字模糊搜索...";
+      deviceInput.placeholder = "输入关键字或点击选择装置...";
     } catch (err) {
-      console.error(err);
       deviceInput.placeholder = "加载失败，请刷新重试";
     }
   }
 
-  // 2. 根据装置，精准向管道小秘书索取对应管线号
+  // 装置变动联动管道
   async function onDeviceChange() {
     const deviceVal = document.getElementById('device').value;
     const pipeInput = document.getElementById('pipe');
     const pipeList = document.getElementById('pipe-list');
-    const weldInput = document.getElementById('weldId');
-    const weldList = document.getElementById('weld-list');
     
-    pipeInput.value = ''; pipeInput.disabled = true; pipeInput.placeholder = "请先选择合法的装置";
-    pipeList.innerHTML = '';
-    weldInput.value = ''; weldInput.disabled = true; weldInput.placeholder = "请先选择管道编号";
-    weldList.innerHTML = '';
+    clearBelow('device');
 
     if (!validDevices.includes(deviceVal)) return;
-
-    pipeInput.placeholder = "正在筛选管线号...";
+    pipeInput.placeholder = "正在精准筛选管道...";
     
     try {
       const res = await fetch(BASE_URL + `v_unique_pipes?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&select=*`, {
         headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
       });
       const rawData = await res.json();
-      
       validPipes = rawData.map(item => item["管道编号"]).filter(Boolean);
       
       pipeList.innerHTML = '';
@@ -138,35 +170,31 @@
         opt.value = pipe;
         pipeList.appendChild(opt);
       });
-      
       pipeInput.disabled = false;
-      pipeInput.placeholder = "输入管线号模糊搜索...";
+      pipeInput.placeholder = "输入关键字或点击选择管道...";
     } catch (err) {
-      pipeInput.placeholder = "管线加载失败";
+      pipeInput.placeholder = "加载失败";
     }
   }
 
-  // 3. 根据管道，向焊口小秘书精准索取对应焊口
+  // 管道变动联动焊口
   async function onPipeChange() {
     const deviceVal = document.getElementById('device').value;
     const pipeVal = document.getElementById('pipe').value;
     const weldInput = document.getElementById('weldId');
     const weldList = document.getElementById('weld-list');
     
-    weldInput.value = ''; weldInput.disabled = true; weldInput.placeholder = "请先选择合法的管道";
-    weldList.innerHTML = '';
+    clearBelow('pipe');
 
     if (!validPipes.includes(pipeVal)) return;
-
-    weldInput.placeholder = "正在筛选对应焊口号...";
+    weldInput.placeholder = "正在精准筛选焊口...";
     
     try {
       const res = await fetch(BASE_URL + `v_unique_welds?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=*`, {
         headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
       });
       const rawData = await res.json();
-      
-      const validWelds = rawData.map(item => item["焊口编号"]).filter(Boolean);
+      validWelds = rawData.map(item => item["焊口编号"]).filter(Boolean);
       
       weldList.innerHTML = '';
       validWelds.forEach(weld => {
@@ -174,34 +202,88 @@
         opt.value = weld;
         weldList.appendChild(opt);
       });
-      
       weldInput.disabled = false;
-      weldInput.placeholder = "输入焊口号模糊搜索...";
+      weldInput.placeholder = "输入关键字或点击选择焊口...";
     } catch (err) {
-      weldInput.placeholder = "焊口加载失败";
+      weldInput.placeholder = "加载失败";
     }
   }
 
-  // 提交保存数据（依然提交到weld_data主表里）
+  // 选中具体焊口号后自动从主表调取属性
+  async function onWeldChange() {
+    const deviceVal = document.getElementById('device').value;
+    const pipeVal = document.getElementById('pipe').value;
+    const weldVal = document.getElementById('weldId').value;
+    
+    if (!validWelds.includes(weldVal)) {
+      clearBelow('pipe');
+      return;
+    }
+
+    document.getElementById('msg').innerText = "正在智能识别并提取焊口数据...";
+
+    try {
+      const res = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(weldVal)}&limit=1`, {
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
+      });
+      const rawData = await res.json();
+      
+      if (rawData && rawData.length > 0) {
+        const item = rawData[0];
+        document.getElementById('inch').value = item["吋径"] || '';
+        document.getElementById('wall').value = item["壁厚等级"] || '';
+        document.getElementById('spec').value = item["规格mm"] || '';
+        document.getElementById('material').value = item["材质"] || '';
+        document.getElementById('dn').value = item["公称直径DN"] || '';
+        document.getElementById('msg').innerText = "✨ 原表属性智能提取填入成功！";
+      }
+    } catch (err) {
+      document.getElementById('msg').innerText = "自动调取属性失败，请检查网络";
+    }
+  }
+
+  // 辅助清空
+  function clearBelow(level) {
+    if (level === 'device') {
+      document.getElementById('pipe').value = ''; document.getElementById('pipe').disabled = true; document.getElementById('pipe').placeholder="请先选择装置";
+    }
+    if (level === 'device' || level === 'pipe') {
+      document.getElementById('weldId').value = ''; document.getElementById('weldId').disabled = true; document.getElementById('weldId').placeholder="请先选择管道";
+      document.getElementById('inch').value = '';
+      document.getElementById('wall').value = '';
+      document.getElementById('spec').value = '';
+      document.getElementById('material').value = '';
+      document.getElementById('dn').value = '';
+      document.getElementById('msg').innerText = '';
+    }
+  }
+
+  // 提交保存数据
   async function save() {
     const data = {
       "装置代号": document.getElementById('device').value,
       "管道编号": document.getElementById('pipe').value,
       "焊口编号": document.getElementById('weldId').value,
-      "实际焊工号": document.getElementById('welderId').value,
       "吋径": document.getElementById('inch').value,
       "壁厚等级": document.getElementById('wall').value,
       "规格mm": document.getElementById('spec').value,
       "材质": document.getElementById('material').value,
+      "公称直径DN": document.getElementById('dn').value,
+      
+      // 用户录入的动态项
+      "实际焊工号": document.getElementById('welderId').value,
       "焊缝类型(必填）": document.getElementById('type').value,
       "焊接方法": document.getElementById('method').value,
       "焊接日期": document.getElementById('date').value,
-      "公称直径DN": document.getElementById('dn').value,
       "管工": document.getElementById('worker').value
     };
 
     if (!validDevices.includes(data["装置代号"]) || !validPipes.includes(data["管道编号"]) || !data["焊口编号"]) {
-      alert("提交失败：请确保 [装置]、[管道] 和 [焊口] 是通过搜索提示选中的合法数据！");
+      alert("提交失败：请通过联想提示选择合法的 [装置、管道、焊口] ！");
+      return;
+    }
+    if (!data["焊缝类型(必填）"] || !data["焊接方法"]) {
+      alert("提交失败：请选择 [焊缝类型] 和 [焊接方法] ！");
       return;
     }
 
@@ -220,14 +302,12 @@
       });
       
       if(res.ok) {
-        document.getElementById('msg').innerText = "提交成功！";
-        document.querySelectorAll('input').forEach(input => {
-          if(input.id !== 'device' && input.id !== 'pipe' && input.id !== 'weldId') {
-            input.value = '';
-          }
-        });
-        document.getElementById('weldId').value = ''; document.getElementById('weldId').disabled = true;
-        document.getElementById('pipe').value = ''; document.getElementById('pipe').disabled = true;
+        document.getElementById('msg').innerText = "🎉 焊口数据成功录入主表！";
+        // 成功后清空手填区域，方便下一条录入
+        document.getElementById('welderId').value = '';
+        document.getElementById('type').value = '';
+        document.getElementById('method').value = '';
+        clearBelow('device');
         document.getElementById('device').value = '';
       } else {
         document.getElementById('msg').innerText = "提交失败: " + await res.text();
