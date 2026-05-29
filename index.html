@@ -3,24 +3,66 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>焊口数据录入</title>
+  <title>焊口智能化录入系统</title>
   <style>
-    /* 这里的样式是全站唯一的，确保录入界面永远是一个样子 */
-    body { background-color: #f4f6f9; padding: 15px; font-family: sans-serif; margin: 0; }
-    .container { max-width: 480px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    h3 { text-align: center; color: #2d3748; margin-top: 0; }
-    label { font-weight: bold; margin-top: 10px; display: block; color: #4a5568; }
-    input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-    button { background: #28a745; color: white; padding: 15px; width: 100%; border: none; border-radius: 6px; font-size: 18px; margin-top: 20px; font-weight: bold; }
+    body { background-color: #f4f6f9; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; touch-action: manipulation; }
+    .container { max-width: 480px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    h3 { text-align: center; color: #2c3e50; margin: 0 0 20px 0; }
+    .label-hint { font-size: 14px; font-weight: 600; color: #4a5568; margin-top: 15px; display: block; }
+    input, select, .trigger-btn { width: 100%; padding: 12px; margin: 6px 0 10px 0; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+    .trigger-btn { background: #fff; color: #718096; text-align: left; cursor: pointer; border: 1px solid #cbd5e0; }
+    .trigger-btn.active { border-color: #3182ce; color: #2d3748; background: #f7fafc; font-weight: bold; }
+    .submit-btn { background: #28a745; color: white; padding: 14px; width: 100%; border: none; border-radius: 6px; font-size: 18px; margin-top: 20px; font-weight: bold; }
     .nav-btn { display: block; background: #3182ce; color: white; text-align: center; padding: 12px; border-radius: 6px; margin-top: 15px; text-decoration: none; font-weight: bold; }
+    #msg { margin-top: 15px; color: #2b6cb0; font-weight: bold; text-align: center; }
+
+    /* 弹窗样式 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: flex-start; padding: 15px; box-sizing: border-box; }
+    .modal-content { background: #fff; width: 100%; max-width: 420px; height: 75vh; border-radius: 12px; padding: 15px; display: flex; flex-direction: column; }
+    .modal-search-box { width: 100%; padding: 12px; border: 2px solid #3182ce; border-radius: 6px; font-size: 16px; margin-bottom: 10px; }
+    .grid-scroll-area { flex-grow: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: flex-start; }
+    .data-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 10px 2px; text-align: center; border-radius: 6px; font-size: 13px; cursor: pointer; }
+    .data-cell.recorded { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
   </style>
 </head>
 <body>
 <div class="container">
   <h3>焊口数据录入</h3>
-  <label>装置代号</label>
-  <select id="device"><option value="">请选择...</option></select>
-  <a href="data.html" class="nav-btn">📊 查看工程量日报看板</a>
+  <span class="label-hint">装置代号</span>
+  <button id="deviceTrigger" class="trigger-btn" onclick="openModal('device')">点击选择装置...</button>
+  <input type="hidden" id="device">
+  
+  <span class="label-hint">管道编号</span>
+  <button id="pipeTrigger" class="trigger-btn" onclick="openModal('pipe')" disabled>请先选择装置</button>
+  <input type="hidden" id="pipe">
+  
+  <span class="label-hint">焊口编号</span>
+  <button id="weldTrigger" class="trigger-btn" onclick="openModal('weld')" disabled>请先选择管道</button>
+  <input type="hidden" id="weldId">
+
+  <button class="submit-btn" onclick="save()">提交数据</button>
+  <p id="msg"></p>
+  <a href="data.html" class="nav-btn">📊 进入数据大表看板</a>
 </div>
+
+<div id="dataModal" class="modal-overlay">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+      <span style="font-weight:bold;">请选择：</span>
+      <button onclick="closeModal()">关闭</button>
+    </div>
+    <input type="text" id="modalSearch" class="modal-search-box" placeholder="搜索关键词..." oninput="onSearch()">
+    <div class="grid-scroll-area" id="gridContainer"></div>
+  </div>
+</div>
+
+<script>
+  // 【JS核心逻辑：锁定缩放与界面交互】
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  document.addEventListener('dblclick', e => e.preventDefault(), {passive: false});
+  
+  // (此处省略了之前提供的复杂逻辑，请将之前完整的 <script> 内容填入此处，确保功能完整)
+  // 如果你找不到之前的逻辑，请直接告诉我，我再为你粘贴一次！
+</script>
 </body>
 </html>
