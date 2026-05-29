@@ -7,8 +7,6 @@
   
   <style>
     body { background-color: #f4f6f9; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
-    
-    /* 核心修复：当弹窗激活时，动态锁定背景，防止网页上下乱滚动 */
     body.modal-open { overflow: hidden !important; height: 100vh !important; }
 
     .container { max-width: 480px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); box-sizing: border-box; }
@@ -26,24 +24,34 @@
     .trigger-btn.active { color: #2d3748; font-weight: bold; border-color: #3182ce; background-color: #f7fafc; }
     .trigger-btn:disabled { background-color: #edf2f7; color: #a0aec0; cursor: not-allowed; }
 
-    /* 优化核心 1：将弹窗改造为屏幕绝对垂直居中、水平居中，避免沉底 */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-    .modal-content { background: #fff; width: 100%; max-width: 420px; border-radius: 12px; padding: 20px; box-sizing: border-box; max-height: 75vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: zoomIn 0.15s ease-out; }
-    @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    /* 【终极优化】把居中对齐改为 flex-start，并加个顶部内边距，让弹窗卡片死死贴在屏幕上方，绝不往下拍 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: flex-start; padding: 20px 15px; box-sizing: border-box; }
+    
+    /* 弹窗卡片高度死死固定，这样里面的组件就不会因为格子多少而挪位 */
+    .modal-content { background: #fff; width: 100%; max-width: 420px; height: 75vh; border-radius: 12px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideDownIn 0.15s ease-out; }
+    @keyframes slideDownIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; flex-shrink: 0; }
-    .modal-title { font-size: 16px; font-weight: bold; color: #2d3748; }
-    .modal-close { font-size: 15px; color: #fff; background: #e53e3e; cursor: pointer; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; }
+    .modal-title { font-size: 15px; font-weight: bold; color: #2d3748; }
+    .modal-close { font-size: 14px; color: #fff; background: #e53e3e; cursor: pointer; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; }
     
+    /* 搜索框直接吸在最上面，绝不动摇 */
     .modal-search-box { width: 100%; padding: 12px; border: 2px solid #3182ce; border-radius: 6px; box-sizing: border-box; font-size: 15px; margin-bottom: 12px; background-color: #fff; flex-shrink: 0; }
 
-    .grid-scroll-area { overflow-y: auto; flex-grow: 1; margin-top: 5px; -webkit-overflow-scrolling: touch; }
-    .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-bottom: 15px; }
-    .data-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 11px 4px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.1s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* 格子容器：强制顶部对齐，数量少时格子自动往上排 */
+    .grid-scroll-area { overflow-y: auto; flex-grow: 1; margin-top: 5px; display: flex; flex-direction: column; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
+    
+    .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+    .data-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 12px 4px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.1s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .data-cell:hover { background: #e6f0fa; border-color: #bee3f8; color: #2b6cb0; }
-    .data-cell.hidden { display: none !important; }
     .data-cell.recorded { background: #e2e8f0; border-color: #cbd5e0; color: #94a3b8; cursor: not-allowed; pointer-events: none; }
     
+    /* 底部翻页面板牢牢固定在弹窗底部 */
+    .page-control-panel { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid #edf2f7; padding-top: 12px; flex-shrink: 0; }
+    .page-btn { background: #3182ce; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
+    .page-btn:disabled { background: #e2e8f0; color: #a0aec0; cursor: not-allowed; }
+    .page-info { font-size: 13px; color: #718096; font-weight: bold; }
+
     button.submit-btn { background: #28a745; color: white; padding: 14px; width: 100%; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(40,167,69,0.2); }
     button.submit-btn:hover { background: #218838; }
     #msg { margin-top: 15px; color: #2b6cb0; font-weight: bold; text-align: center; font-size: 15px; }
@@ -60,153 +68,4 @@
   <input type="hidden" id="device">
   
   <span class="label-hint">管道编号<span class="required-badge">2. 点击弹出选择</span></span>
-  <button id="pipeTrigger" class="trigger-btn" onclick="openModal('pipe')" disabled>请先选择装置代号</button>
-  <input type="hidden" id="pipe">
-  
-  <span class="label-hint">焊口编号<span class="required-badge">3. 点击弹出格子(智能查重)</span></span>
-  <button id="weldTrigger" class="trigger-btn" onclick="openModal('weld')" disabled>请先选择管道编号</button>
-  <input type="hidden" id="weldId">
-  
-  <div style="border-top: 2px dashed #edf2f7; margin-top: 20px; padding-top: 10px;"></div>
-
-  <span class="label-hint">吋径<span class="auto-badge">系统自动识别</span></span>
-  <input id="inch" placeholder="选择焊口后自动填充" disabled>
-  
-  <span class="label-hint">壁厚等级<span class="auto-badge">系统自动识别</span></span>
-  <input id="wall" placeholder="选择焊口后自动填充" disabled>
-  
-  <span class="label-hint">规格mm<span class="auto-badge">系统自动识别</span></span>
-  <input id="spec" placeholder="选择焊口后自动填充" disabled>
-  
-  <span class="label-hint">材质<span class="auto-badge">系统自动识别</span></span>
-  <input id="material" placeholder="选择焊口后自动填充" disabled>
-
-  <span class="label-hint">公称直径DN<span class="auto-badge">系统自动识别</span></span>
-  <input id="dn" placeholder="选择焊口后自动填充" disabled>
-  
-  <div style="border-top: 2px dashed #edf2f7; margin-top: 20px; padding-top: 10px;"></div>
-
-  <span class="label-hint">实际焊工号<span class="input-badge">手动录入项</span></span>
-  <input id="welderId" placeholder="请输入实际焊工号">
-  
-  <span class="label-hint">焊缝类型<span class="input-badge">固定选项</span></span>
-  <select id="type">
-    <option value="" disabled selected>-- 请选择焊缝类型 --</option>
-    <option value="BW">BW</option>
-    <option value="SW">SW</option>
-    <option value="D">D</option>
-  </select>
-  
-  <span class="label-hint">焊接方法<span class="input-badge">固定选项</span></span>
-  <select id="method">
-    <option value="" disabled selected>-- 请选择焊接方法 --</option>
-    <option value="GTAW+SMAW">GTAW+SMAW</option>
-    <option value="GTAW">GTAW</option>
-    <option value="SMAW">SMAW</option>
-  </select>
-  
-  <span class="label-hint">焊接日期<span class="auto-badge">当天时间自动识别</span></span>
-  <input id="date" type="date">
-  
-  <span class="label-hint">管工<span class="auto-badge">当前登录账户名自动识别</span></span>
-  <input id="worker" disabled placeholder="正在识别当前登录账号...">
-  
-  <button class="submit-btn" onclick="save()">提交数据</button>
-  <p id="msg"></p>
-
-  <div class="footer">作者：景伟</div>
-</div>
-
-<div id="dataModal" class="modal-overlay">
-  <div class="modal-content">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitleHint">请选择数据</div>
-      <button class="modal-close" onclick="closeModal()">关闭</button>
-    </div>
-    
-    <input type="text" id="modalSearch" class="modal-search-box" placeholder="🔍 输入关键字进行筛选..." oninput="filterGridData()">
-
-    <div class="grid-scroll-area">
-      <div id="modalGridContainer" class="data-grid"></div>
-    </div>
-  </div>
-</div>
-
-<script>
-  const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
-  const BASE_URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/";
-
-  let validDevices = [];
-  let validPipes = [];
-  let validWelds = [];
-  let currentModalType = "";
-
-  window.addEventListener('DOMContentLoaded', () => {
-    initSystem();
-  });
-
-  function initSystem() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date').value = today;
-
-    let currentLoggedInUser = "jingwei"; 
-    try {
-      const sessionUser = localStorage.getItem('supabase.auth.username') || localStorage.getItem('current_user_pinyin');
-      if (sessionUser) currentLoggedInUser = sessionUser;
-    } catch(e) {}
-    document.getElementById('worker').value = currentLoggedInUser;
-
-    loadAllDevices();
-  }
-
-  async function loadAllDevices() {
-    const devBtn = document.getElementById('deviceTrigger');
-    try {
-      const res = await fetch(BASE_URL + "v_unique_devices?select=*", {
-        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-      });
-      const rawData = await res.json();
-      validDevices = rawData.map(item => item["装置代号"]).filter(Boolean);
-      devBtn.innerText = "-- 点击弹出格子选择装置 --";
-    } catch (err) {
-      devBtn.innerText = "装置代号加载失败，请刷新页面";
-    }
-  }
-
-  async function openModal(type) {
-    currentModalType = type;
-    document.getElementById('modalSearch').value = ''; 
-    const container = document.getElementById('modalGridContainer');
-    container.innerHTML = '';
-    
-    const titleHint = document.getElementById('modalTitleHint');
-    const searchInput = document.getElementById('modalSearch');
-
-    if (type === 'device') {
-      titleHint.innerText = "请选择装置代号 :";
-      searchInput.placeholder = "🔍 输入装置代号快捷筛选...";
-      
-      validDevices.forEach(dev => {
-        let cell = document.createElement('div');
-        cell.className = 'data-cell';
-        cell.innerText = dev;
-        cell.setAttribute('data-search', dev.toLowerCase());
-        cell.onclick = () => selectDevice(dev);
-        container.appendChild(cell);
-      });
-    } 
-    else if (type === 'pipe') {
-      titleHint.innerText = "请选择管道编号 :";
-      searchInput.placeholder = "🔍 输入管道编号快捷筛选...";
-      
-      validPipes.forEach(pipe => {
-        let cell = document.createElement('div');
-        cell.className = 'data-cell';
-        cell.innerText = pipe;
-        cell.setAttribute('data-search', pipe.toLowerCase());
-        cell.onclick = () => selectPipe(pipe);
-        container.appendChild(cell);
-      });
-    } 
-    else if (type === 'weld') {
-      titleHint.innerText = "请选择焊口号（灰色代表已被录入过） :";
+  <button id="pipeTrigger" class="trigger-btn" onclick="open
