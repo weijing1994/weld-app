@@ -17,26 +17,32 @@
     input:focus, select:focus { border-color: #3182ce; outline: none; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2); }
     input:disabled, select:disabled { background-color: #edf2f7; cursor: not-allowed; border-color: #e2e8f0; color: #4a5568; font-weight: bold; }
     
-    /* 焊口大格子触发按钮样式 */
+    /* 焊口大格子触发按钮 */
     .weld-trigger-btn { background-color: #fff; color: #a0aec0; cursor: pointer; border: 1px solid #cbd5e0; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .weld-trigger-btn.active { color: #2d3748; font-weight: bold; border-color: #3182ce; background-color: #f7fafc; }
     .weld-trigger-btn:disabled { background-color: #edf2f7; color: #a0aec0; cursor: not-allowed; }
 
     /* 弹出大格子遮罩层 */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: flex-end; }
-    /* 弹出框主体（抽屉式设计，极大方便手机戳） */
-    .modal-content { background: #fff; width: 100%; max-width: 480px; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 20px; box-sizing: border-box; max-height: 70vh; overflow-y: auto; animation: slideUp 0.2s ease-out; }
+    /* 弹出框主体 */
+    .modal-content { background: #fff; width: 100%; max-width: 480px; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 20px; box-sizing: border-box; max-height: 80vh; overflow-y: auto; animation: slideUp 0.2s ease-out; }
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; }
     .modal-title { font-size: 16px; font-weight: bold; color: #2d3748; }
     .modal-close { font-size: 20px; color: #a0aec0; cursor: pointer; border: none; background: none; padding: 5px; }
     
+    /* 弹出框内的搜索框样式 */
+    .modal-search-box { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; margin-bottom: 12px; background-color: #f7fafc; }
+    .modal-search-box:focus { background-color: #fff; border-color: #3182ce; outline: none; }
+
     /* 大格子网格布局 */
-    .weld-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
-    .weld-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 12px 5px; text-align: center; border-radius: 8px; font-size: 14px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.15s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .weld-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 5px; }
+    .weld-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 10px 4px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.1s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .weld-cell:hover { background: #e6f0fa; border-color: #bee3f8; color: #2b6cb0; }
     .weld-cell.selected { background: #3182ce; border-color: #3182ce; color: #fff; }
+    /* 当格子被过滤隐藏时的样式 */
+    .weld-cell.hidden { display: none; }
     
     button.submit-btn { background: #28a745; color: white; padding: 14px; width: 100%; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(40,167,69,0.2); }
     button.submit-btn:hover { background: #218838; }
@@ -57,9 +63,11 @@
   <input id="pipe" list="pipe-list" placeholder="请先输入/选择装置" oninput="onPipeChange()" disabled>
   <datalist id="pipe-list"></datalist>
   
-  <span class="label-hint">焊口编号<span class="required-badge">3. 点击跳出格子选择</span></span>
+  <span class="label-hint">焊口编号<span class="required-badge">3. 点击弹出格子(支持搜索)</span></span>
   <button id="weldTrigger" class="weld-trigger-btn" onclick="openWeldModal()" disabled>请先输入/选择管道</button>
-  <input type="hidden" id="weldId"> <div style="border-top: 2px dashed #edf2f7; margin-top: 20px; padding-top: 10px;"></div>
+  <input type="hidden" id="weldId">
+  
+  <div style="border-top: 2px dashed #edf2f7; margin-top: 20px; padding-top: 10px;"></div>
 
   <span class="label-hint">吋径<span class="auto-badge">系统自动识别</span></span>
   <input id="inch" placeholder="选择焊口后自动填充" disabled>
@@ -91,181 +99,4 @@
   
   <span class="label-hint">焊接方法<span class="input-badge">固定选项</span></span>
   <select id="method">
-    <option value="" disabled selected>-- 请选择焊接方法 --</option>
-    <option value="GTAW+SMAW">GTAW+SMAW</option>
-    <option value="GTAW">GTAW</option>
-    <option value="SMAW">SMAW</option>
-  </select>
-  
-  <span class="label-hint">焊接日期<span class="auto-badge">当天时间自动识别</span></span>
-  <input id="date" type="date">
-  
-  <span class="label-hint">管工<span class="auto-badge">当前登录账户名自动识别</span></span>
-  <input id="worker" disabled placeholder="正在识别当前登录账号...">
-  
-  <button class="submit-btn" onclick="save()">提交数据</button>
-  <p id="msg"></p>
-
-  <div class="footer">作者：景伟</div>
-</div>
-
-<div id="weldModal" class="modal-overlay" onclick="closeWeldModal(event)">
-  <div class="modal-content" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitleHint">请选择焊口号</div>
-      <button class="modal-close" onclick="closeWeldModal()">✕</button>
-    </div>
-    <div id="weldGridContainer" class="weld-grid">
-      </div>
-  </div>
-</div>
-
-<script>
-  const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
-  const BASE_URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/";
-
-  let validDevices = [];
-  let validPipes = [];
-  let validWelds = [];
-
-  // 初始化系统
-  function initSystem() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date').value = today;
-
-    let currentLoggedInUser = "jingwei"; 
-    try {
-      const sessionUser = localStorage.getItem('supabase.auth.username') || localStorage.getItem('current_user_pinyin');
-      if (sessionUser) currentLoggedInUser = sessionUser;
-    } catch(e) {}
-    document.getElementById('worker').value = currentLoggedInUser;
-
-    initDeviceCodes();
-  }
-
-  // 加载全量装置代号
-  async function initDeviceCodes() {
-    const deviceInput = document.getElementById('device');
-    const deviceList = document.getElementById('device-list');
-    try {
-      const res = await fetch(BASE_URL + "v_unique_devices?select=*", {
-        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-      });
-      const rawData = await res.json();
-      validDevices = rawData.map(item => item["装置代号"]).filter(Boolean);
-      
-      deviceList.innerHTML = '';
-      validDevices.forEach(code => {
-        let opt = document.createElement('option');
-        opt.value = code;
-        deviceList.appendChild(opt);
-      });
-      deviceInput.placeholder = "输入关键字或点击选择装置...";
-    } catch (err) {
-      deviceInput.placeholder = "加载失败，请刷新重试";
-    }
-  }
-
-  // 装置变动联动管道
-  async function onDeviceChange() {
-    const deviceVal = document.getElementById('device').value;
-    const pipeInput = document.getElementById('pipe');
-    const pipeList = document.getElementById('pipe-list');
-    
-    clearBelow('device');
-
-    if (!validDevices.includes(deviceVal)) return;
-    pipeInput.placeholder = "正在精准筛选管道...";
-    
-    try {
-      const res = await fetch(BASE_URL + `v_unique_pipes?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&select=*`, {
-        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-      });
-      const rawData = await res.json();
-      validPipes = rawData.map(item => item["管道编号"]).filter(Boolean);
-      
-      pipeList.innerHTML = '';
-      validPipes.forEach(pipe => {
-        let opt = document.createElement('option');
-        opt.value = pipe;
-        pipeList.appendChild(opt);
-      });
-      pipeInput.disabled = false;
-      pipeInput.placeholder = "输入关键字或点击选择管道...";
-    } catch (err) {
-      pipeInput.placeholder = "加载失败";
-    }
-  }
-
-  // 管道变动联动焊口数据拉取（在后台准备好大格子）
-  async function onPipeChange() {
-    const deviceVal = document.getElementById('device').value;
-    const pipeVal = document.getElementById('pipe').value;
-    const triggerBtn = document.getElementById('weldTrigger');
-    
-    clearBelow('pipe');
-
-    if (!validPipes.includes(pipeVal)) return;
-    triggerBtn.innerText = "正在获取焊口格子列表...";
-    
-    try {
-      const res = await fetch(BASE_URL + `v_unique_welds?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=*`, {
-        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-      });
-      const rawData = await res.json();
-      validWelds = rawData.map(item => item["焊口编号"]).filter(Boolean);
-      
-      // 生成格子 HTML 元素
-      const gridContainer = document.getElementById('weldGridContainer');
-      gridContainer.innerHTML = '';
-      
-      if(validWelds.length === 0) {
-        triggerBtn.innerText = "该管道下无焊口数据";
-        return;
-      }
-
-      validWelds.forEach(weld => {
-        let cell = document.createElement('div');
-        cell.className = 'weld-cell';
-        cell.innerText = weld;
-        cell.onclick = () => selectWeld(weld, cell);
-        gridContainer.appendChild(cell);
-      });
-
-      triggerBtn.disabled = false;
-      triggerBtn.className = "weld-trigger-btn active";
-      triggerBtn.innerText = "-- 点击弹出格子选择焊口 --";
-      document.getElementById('modalTitleHint').innerText = `管道 [ ${pipeVal} ] 下的全部焊口 :`;
-    } catch (err) {
-      triggerBtn.innerText = "焊口加载失败";
-    }
-  }
-
-  // 唤起和关闭格子弹窗
-  function openWeldModal() {
-    document.getElementById('weldModal').style.display = 'flex';
-  }
-  function closeWeldModal(e) {
-    document.getElementById('weldModal').style.display = 'none';
-  }
-
-  // 【核心选中格点逻辑】
-  async function selectWeld(weldVal, cellElement) {
-    // 1. 改变大按钮高亮状态
-    document.getElementById('weldTrigger').innerText = "已选焊口: " + weldVal;
-    document.getElementById('weldId').value = weldVal;
-    
-    // 2. 移除所有格子的选中高亮，单独给当前加高亮
-    document.querySelectorAll('.weld-cell').forEach(c => c.classList.remove('selected'));
-    cellElement.classList.add('selected');
-    
-    // 3. 关闭格子框
-    closeWeldModal();
-
-    // 4. 去主大表秒速抓取这个焊口特有的物理属性并回填
-    const deviceVal = document.getElementById('device').value;
-    const pipeVal = document.getElementById('pipe').value;
-    document.getElementById('msg').innerText = "正在智能识别并提取焊口数据...";
-
-    try {
-      const res = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%
+    <option value="" disabled selected>
