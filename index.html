@@ -82,8 +82,8 @@
 
   window.onload = async () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    // 启动只加载所有装置
-    const res = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=装置代号&distinct=on`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
+    // 修正：去掉非法的 distinct=on，改用 limit=10000 保证获取全部
+    const res = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=装置代号&limit=10000`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
     const d = await res.json();
     allDevice = [...new Set(d.map(x=>x['装置代号']).filter(Boolean))].sort();
   };
@@ -92,11 +92,11 @@
     currentModalType = type;
     document.getElementById('modalSearch').value = '';
     document.getElementById('modal').style.display = 'flex';
-    // 打开弹窗一次性缓存对应全量列表，方便本地搜索
+    
     if(type === 'pipe'){
       const dev = document.getElementById('device').value;
       if(!pipeDict[dev]){
-        const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=管道编号&装置代号=eq.${dev}&distinct=on`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
+        const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=管道编号&装置代号=eq.${encodeURIComponent(dev)}&limit=10000`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
         let pArr = await r.json();
         pipeDict[dev] = [...new Set(pArr.map(x=>x['管道编号']).filter(Boolean))].sort();
       }
@@ -106,7 +106,7 @@
       const pip = document.getElementById('pipe').value;
       const key = dev+'_'+pip;
       if(!weldDict[key]){
-        const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=*&装置代号=eq.${dev}&管道编号=eq.${pip}`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
+        const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=*&装置代号=eq.${encodeURIComponent(dev)}&管道编号=eq.${encodeURIComponent(pip)}&limit=10000`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
         weldDict[key] = await r.json();
       }
       tempWeldList = [...weldDict[key]];
@@ -139,7 +139,7 @@
         wrap.appendChild(dom);
       })
     }else if(currentModalType === 'weld'){
-      showArr = tempWeldList.filter(obj=>obj['焊口编号'].toLowerCase().includes(kw));
+      showArr = tempWeldList.filter(obj=>obj['焊口编号'] && obj['焊口编号'].toLowerCase().includes(kw));
       showArr.forEach(item=>{
         let isUsed = !!item['实际焊工号'];
         let dom = document.createElement('div');
