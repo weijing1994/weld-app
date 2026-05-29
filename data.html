@@ -2,86 +2,127 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>日报看板</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工程量日报看板</title>
   <style>
-    body { background: #f4f6f9; padding: 5px; font-family: sans-serif; }
-    .card { background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    .data-table th, .data-table td { border: 1px solid #aaa; padding: 6px 2px; text-align: center; vertical-align: middle; }
-    .data-table th { background: #d1d5db; color: #000; }
-    .back-btn { display: block; padding: 10px; background: #4a5568; color: white; text-align: center; text-decoration: none; border-radius: 6px; font-weight: bold; margin-bottom: 10px; }
+    body { font-family: "Segoe UI", sans-serif; background: #f4f6f9; padding: 15px; margin:0; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { text-align: center; color: #333; }
+    .card { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top:10px; }
+    th, td { padding: 10px; text-align: center; border: 1px solid #ddd; }
+    th { background: #007bff; color: #fff; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .back-btn { display: block; text-align: center; margin-top: 20px; color: #007bff; text-decoration: none; font-weight:bold; }
+    .summary { display: flex; justify-content: space-around; text-align:center; }
+    .summary-item { padding:10px; }
+    .num { font-size:24px; font-weight:bold; color:#007bff; }
   </style>
 </head>
-<body onload="loadAllData()">
+<body>
+<div class="container">
+  <h1>📊 焊口工程量日报看板</h1>
 
-  <div class="card">
-    <a href="index.html" class="back-btn">← 返回</a>
-    <input type="date" id="dateFilter" onchange="render()" style="width:100%; padding:10px; box-sizing:border-box;">
+  <div class="card summary">
+    <div class="summary-item">
+      <div>今日焊口总数</div>
+      <div class="num" id="todayCount">0</div>
+    </div>
+    <div class="summary-item">
+      <div>累计焊口总数</div>
+      <div class="num" id="totalCount">0</div>
+    </div>
+    <div class="summary-item">
+      <div>涉及焊工数</div>
+      <div class="num" id="welderCount">0</div>
+    </div>
   </div>
 
   <div class="card">
-    <table class="data-table">
+    <h2>今日录入明细</h2>
+    <table>
       <thead>
-        <tr><th>序号</th><th>装置</th><th>材质</th><th>当日吋</th><th>当日道</th><th>总吋</th><th>未完成</th><th>进度</th></tr>
+        <tr>
+          <th>装置代号</th>
+          <th>管道编号</th>
+          <th>焊口编号</th>
+          <th>焊工号</th>
+          <th>材质</th>
+          <th>日期</th>
+        </tr>
       </thead>
-      <tbody id="statBody"></tbody>
+      <tbody id="todayList">
+        <tr><td colspan="6">加载中...</td></tr>
+      </tbody>
     </table>
   </div>
+
+  <div class="card">
+    <h2>全部数据汇总</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>装置代号</th>
+          <th>管道编号</th>
+          <th>焊口编号</th>
+          <th>焊工号</th>
+          <th>材质</th>
+          <th>日期</th>
+        </tr>
+      </thead>
+      <tbody id="allList">
+        <tr><td colspan="6">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <a href="index.html" class="back-btn">← 返回录入页面</a>
+</div>
 
 <script>
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
   const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
-  
-  let allRecords = [];
 
-  // 1. 一次性把所有记录拉下来，建立一个“全集”
-  async function loadAllData() {
-    document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
-    const res = await fetch(URL + "?select=*", { 
-      headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-9999" } 
+  const today = new Date().toISOString().split('T')[0];
+
+  window.onload = async () => {
+    const res = await fetch(URL + "?select=*", {
+      headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
     });
-    allRecords = await res.json();
-    render();
-  }
+    const data = await res.json();
 
-  function render() {
-    const d = document.getElementById('dateFilter').value;
-    
-    // A. 找出所有唯一的装置代号 (不管有没有焊接记录，只要在数据库出现过)
-    const devices = [...new Set(allRecords.map(r => r['装置代号']).filter(Boolean))].sort();
-    
-    let html = "";
-    let idx = 1;
+    const todayData = data.filter(d => d["焊接日期"] === today);
+    const allData = data;
 
-    devices.forEach(dev => {
-      // B. 找出该装置下所有出现过的材质
-      const devRows = allRecords.filter(r => r['装置代号'] === dev);
-      const materials = [...new Set(devRows.map(r => r['材质'] || '无'))].sort();
-      
-      materials.forEach((mat, i) => {
-        // C. 计算该装置+该材质的数据
-        const records = devRows.filter(r => r['材质'] === mat);
-        const dayRecords = records.filter(r => r['焊接日期'] === d);
-        
-        const totalInch = records.reduce((sum, r) => sum + parseFloat(r['吋径'] || 0), 0);
-        const dayInch = dayRecords.reduce((sum, r) => sum + parseFloat(r['吋径'] || 0), 0);
-        const dayCount = dayRecords.length;
-        const rate = totalInch > 0 ? Math.round((dayInch / totalInch) * 100) + "%" : "0%";
+    document.getElementById("todayCount").innerText = todayData.length;
+    document.getElementById("totalCount").innerText = allData.length;
 
-        html += `<tr>
-          <td>${idx++}</td>
-          ${i === 0 ? `<td rowspan="${materials.length}" style="font-weight:bold; background:#f9f9f9;">${dev}</td>` : ""}
-          <td>${mat}</td>
-          <td>${dayInch.toFixed(1)}</td>
-          <td>${dayCount}</td>
-          <td>${totalInch.toFixed(1)}</td>
-          <td>${(totalInch - dayInch).toFixed(1)}</td>
-          <td>${rate}</td>
-        </tr>`;
-      });
+    const welderSet = new Set(allData.map(d => d["实际焊工号"]).filter(Boolean));
+    document.getElementById("welderCount").innerText = welderSet.size;
+
+    fillTable("todayList", todayData);
+    fillTable("allList", allData);
+  };
+
+  function fillTable(tbodyId, list) {
+    const tbody = document.getElementById(tbodyId);
+    tbody.innerHTML = "";
+    if (list.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='6'>暂无数据</td></tr>";
+      return;
+    }
+    list.forEach(d => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d["装置代号"] || ""}</td>
+        <td>${d["管道编号"] || ""}</td>
+        <td>${d["焊口编号"] || ""}</td>
+        <td>${d["实际焊工号"] || ""}</td>
+        <td>${d["材质"] || ""}</td>
+        <td>${d["焊接日期"] || ""}</td>
+      `;
+      tbody.appendChild(tr);
     });
-    document.getElementById('statBody').innerHTML = html;
   }
 </script>
 </body>
