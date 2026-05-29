@@ -24,48 +24,5 @@
     .trigger-btn.active { color: #2d3748; font-weight: bold; border-color: #3182ce; background-color: #f7fafc; }
     .trigger-btn:disabled { background-color: #edf2f7; color: #a0aec0; cursor: not-allowed; }
 
-    /* 【终极优化】把居中对齐改为 flex-start，并加个顶部内边距，让弹窗卡片死死贴在屏幕上方，绝不往下拍 */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: flex-start; padding: 20px 15px; box-sizing: border-box; }
-    
-    /* 弹窗卡片高度死死固定，这样里面的组件就不会因为格子多少而挪位 */
-    .modal-content { background: #fff; width: 100%; max-width: 420px; height: 75vh; border-radius: 12px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideDownIn 0.15s ease-out; }
-    @keyframes slideDownIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; flex-shrink: 0; }
-    .modal-title { font-size: 15px; font-weight: bold; color: #2d3748; }
-    .modal-close { font-size: 14px; color: #fff; background: #e53e3e; cursor: pointer; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; }
-    
-    /* 搜索框直接吸在最上面，绝不动摇 */
-    .modal-search-box { width: 100%; padding: 12px; border: 2px solid #3182ce; border-radius: 6px; box-sizing: border-box; font-size: 15px; margin-bottom: 12px; background-color: #fff; flex-shrink: 0; }
-
-    /* 格子容器：强制顶部对齐，数量少时格子自动往上排 */
-    .grid-scroll-area { overflow-y: auto; flex-grow: 1; margin-top: 5px; display: flex; flex-direction: column; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
-    
-    .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
-    .data-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 12px 4px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.1s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .data-cell:hover { background: #e6f0fa; border-color: #bee3f8; color: #2b6cb0; }
-    .data-cell.recorded { background: #e2e8f0; border-color: #cbd5e0; color: #94a3b8; cursor: not-allowed; pointer-events: none; }
-    
-    /* 底部翻页面板牢牢固定在弹窗底部 */
-    .page-control-panel { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid #edf2f7; padding-top: 12px; flex-shrink: 0; }
-    .page-btn { background: #3182ce; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
-    .page-btn:disabled { background: #e2e8f0; color: #a0aec0; cursor: not-allowed; }
-    .page-info { font-size: 13px; color: #718096; font-weight: bold; }
-
-    button.submit-btn { background: #28a745; color: white; padding: 14px; width: 100%; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; margin-top: 15px; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(40,167,69,0.2); }
-    button.submit-btn:hover { background: #218838; }
-    #msg { margin-top: 15px; color: #2b6cb0; font-weight: bold; text-align: center; font-size: 15px; }
-    .footer { text-align: center; color: #a0aec0; font-size: 13px; margin-top: 30px; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
-  </style>
-</head>
-<body>
-
-<div class="container">
-  <h3>焊口数据录入</h3>
-  
-  <span class="label-hint">装置代号<span class="required-badge">1. 点击弹出选择</span></span>
-  <button id="deviceTrigger" class="trigger-btn active" onclick="openModal('device')">正在全量加载装置代号...</button>
-  <input type="hidden" id="device">
-  
-  <span class="label-hint">管道编号<span class="required-badge">2. 点击弹出选择</span></span>
-  <button id="pipeTrigger" class="trigger-btn" onclick="open
+    /* 弹窗核心优化：死死钉在屏幕上方，绝不往下拍 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: flex-
