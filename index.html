@@ -13,11 +13,13 @@
     #msg { margin-top: 20px; color: #d53f8c; font-weight: bold; text-align: center; }
   </style>
 </head>
-<body>
+<body onload="loadDevices()">
 
   <h3>焊口数据录入</h3>
   
-  <input id="device" placeholder="装置代号">
+  <select id="device">
+    <option value="">正在读取装置代号...</option>
+  </select>
   <input id="pipe" placeholder="管道编号">
   <input id="weldId" placeholder="焊口编号">
   <input id="welderId" placeholder="实际焊工号">
@@ -36,9 +38,25 @@
     const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
     const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
 
-    // 自动填写日期
+    // 1. 自动填日期
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
 
+    // 2. 加载装置代号
+    async function loadDevices() {
+      const sel = document.getElementById('device');
+      try {
+        const res = await fetch(URL + "?select=装置代号", { headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }});
+        const data = await res.json();
+        const codes = [...new Set(data.map(i => i["装置代号"]))].filter(Boolean);
+        sel.innerHTML = '<option value="">-- 请选择装置代号 --</option>';
+        codes.forEach(c => {
+          let o = document.createElement('option');
+          o.value = c; o.text = c; sel.appendChild(o);
+        });
+      } catch(e) { sel.innerHTML = '<option value="">加载失败，请刷新</option>'; }
+    }
+
+    // 3. 提交数据
     async function save() {
       const data = {
         "装置代号": document.getElementById('device').value,
@@ -51,30 +69,19 @@
         "焊接日期": document.getElementById('date').value,
         "管工": document.getElementById('worker').value
       };
-
-      document.getElementById('msg').innerText = "提交中...";
       
-      try {
-        const res = await fetch(URL, {
-          method: "POST",
-          headers: { 
-            "apikey": KEY, 
-            "Authorization": "Bearer " + KEY, 
-            "Content-Type": "application/json", 
-            "Prefer": "return=minimal" 
-          },
-          body: JSON.stringify(data)
-        });
-        
-        if(res.ok) {
-          document.getElementById('msg').innerText = "🎉 提交成功！";
-          // 清空输入框
-          document.querySelectorAll('input').forEach(i => { if(i.id !== 'date') i.value = ''; });
-        } else {
-          document.getElementById('msg').innerText = "提交失败，请检查数据完整性";
-        }
-      } catch (err) {
-        document.getElementById('msg').innerText = "网络错误: " + err.message;
+      document.getElementById('msg').innerText = "提交中...";
+      const res = await fetch(URL, {
+        method: "POST",
+        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY, "Content-Type": "application/json", "Prefer": "return=minimal" },
+        body: JSON.stringify(data)
+      });
+      
+      if(res.ok) {
+        document.getElementById('msg').innerText = "✅ 提交成功！";
+        document.querySelectorAll('input').forEach(i => { if(i.type !== 'date') i.value = ''; });
+      } else {
+        document.getElementById('msg').innerText = "提交失败，请检查";
       }
     }
   </script>
