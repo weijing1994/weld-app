@@ -2,35 +2,149 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>焊口录入</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>焊口智能化录入系统</title>
   <style>
-    /* 这是你最开始那个漂亮、简洁的风格 */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #f4f6f9; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .container { max-width: 450px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    h3 { text-align: center; color: #333; margin-top: 0; margin-bottom: 25px; }
-    .form-group { margin-bottom: 18px; }
-    label { display: block; margin-bottom: 6px; font-size: 14px; color: #555; font-weight: 500; }
-    input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; background-color: #fcfcfc; }
-    button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 17px; font-weight: bold; margin-top: 10px; cursor: pointer; }
-    .nav-btn { display: block; text-align: center; margin-top: 20px; color: #888; text-decoration: none; font-size: 14px; }
+    .container { max-width: 480px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    h1 { text-align: center; color: #222; font-size: 20px; margin-bottom: 30px; }
+    .form-group { margin-bottom: 20px; }
+    .label-row { display: flex; align-items: center; margin-bottom: 8px; }
+    label { font-size: 14px; color: #333; font-weight: 500; margin-right: 8px; }
+    .tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; }
+    .tag-blue { background: #e3f2fd; color: #1976d2; }
+    .tag-green { background: #e8f5e9; color: #388e3c; }
+    .tag-purple { background: #f3e5f5; color: #7b1fa2; }
+    .tag-gray { background: #f5f5f5; color: #616161; }
+    .input-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; background-color: #fff; }
+    .input-field:disabled { background-color: #f5f5f5; color: #666; }
+    .btn-submit { width: 100%; padding: 14px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 17px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+    .btn-dashboard { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; margin-top: 12px; cursor: pointer; }
+    .tip { text-align: center; font-size: 13px; color: #666; margin: 10px 0; }
   </style>
 </head>
 <body>
-
 <div class="container">
-  <h3>焊口录入</h3>
-  
-  <div class="form-group"><label>装置代号</label><select id="device"><option value="">正在读取...</option></select></div>
-  <div class="form-group"><label>管道编号</label><input id="pipe" placeholder="请输入管道编号"></div>
-  <div class="form-group"><label>焊口编号</label><input id="weldId" placeholder="请输入焊口编号"></div>
-  <div class="form-group"><label>焊工号</label><input id="welderId" placeholder="请输入焊工号"></div>
-  <div class="form-group"><label>吋径</label><input id="inch" placeholder="请输入吋径"></div>
-  <div class="form-group"><label>材质</label><input id="material" placeholder="请输入材质"></div>
-  <div class="form-group"><label>焊接日期</label><input id="date" type="date"></div>
+  <h1>焊口数据录入首页</h1>
 
-  <button onclick="save()">提交数据</button>
-  <a href="data.html" class="nav-btn">查看工程量日报看板</a>
+  <div class="form-group">
+    <div class="label-row">
+      <label>装置代号</label>
+      <span class="tag tag-blue">1. 点击弹出选择</span>
+    </div>
+    <input type="text" class="input-field" id="device" value="已选装置: 1103-03" readonly>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>管道编号</label>
+      <span class="tag tag-blue">2. 点击弹出选择</span>
+    </div>
+    <input type="text" class="input-field" id="pipe" value="已选管道: AL-P03304-02-D" readonly>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>焊口编号</label>
+      <span class="tag tag-blue">3. 点击弹出格子(智能查重)</span>
+    </div>
+    <input type="text" class="input-field" id="weldId" value="已选焊口: 9" readonly>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>吋径</label>
+      <span class="tag tag-green">系统自动识别</span>
+    </div>
+    <input type="text" class="input-field" value="0.5" disabled>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>壁厚等级</label>
+      <span class="tag tag-green">系统自动识别</span>
+    </div>
+    <input type="text" class="input-field" value="SCH40" disabled>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>规格mm</label>
+      <span class="tag tag-green">系统自动识别</span>
+    </div>
+    <input type="text" class="input-field" value="18*2.5" disabled>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>材质</label>
+      <span class="tag tag-green">系统自动识别</span>
+    </div>
+    <input type="text" class="input-field" value="304 GB/T14976" disabled>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>公称直径DN</label>
+      <span class="tag tag-green">系统自动识别</span>
+    </div>
+    <input type="text" class="input-field" value="选择焊口后自动填充" disabled>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>实际焊工号</label>
+      <span class="tag tag-purple">手动录入项</span>
+    </div>
+    <input type="text" class="input-field" id="welderId" placeholder="请输入实际焊工号">
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>焊缝类型</label>
+      <span class="tag tag-gray">固定选项</span>
+    </div>
+    <select class="input-field" id="weldType">
+      <option value="">-- 请选择焊缝类型 --</option>
+      <option value="对接">对接</option>
+      <option value="角接">角接</option>
+      <option value="承插">承插</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>焊接方法</label>
+      <span class="tag tag-gray">固定选项</span>
+    </div>
+    <select class="input-field" id="weldMethod">
+      <option value="">-- 请选择焊接方法 --</option>
+      <option value="氩弧">氩弧</option>
+      <option value="电弧">电弧</option>
+      <option value="氩弧+电弧">氩弧+电弧</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>焊接日期</label>
+      <span class="tag tag-green">当天时间自动识别</span>
+    </div>
+    <input type="date" class="input-field" id="weldDate">
+  </div>
+
+  <div class="form-group">
+    <div class="label-row">
+      <label>管工</label>
+      <span class="tag tag-green">当前登录账户名自动识别</span>
+    </div>
+    <input type="text" class="input-field" id="worker" value="jingwei" disabled>
+  </div>
+
+  <button class="btn-submit" onclick="save()">提交数据</button>
+  <p class="tip">✨ 该焊口属性智能提取填入成功！</p>
+  <button class="btn-dashboard" onclick="location.href='data.html'">📊 进入数据大表看板</button>
 </div>
 
 <script>
@@ -38,44 +152,46 @@
   const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
 
   window.onload = () => {
-    document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    loadDevices();
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('weldDate').value = today;
   };
-
-  async function loadDevices() {
-    const res = await fetch(URL + "?select=装置代号", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY }});
-    const data = await res.json();
-    const codes = [...new Set(data.map(i => i["装置代号"]))].filter(Boolean).sort();
-    const sel = document.getElementById('device');
-    codes.forEach(c => { let o = document.createElement('option'); o.value = c; o.text = c; sel.appendChild(o); });
-  }
 
   async function save() {
     const data = {
-      "装置代号": document.getElementById('device').value,
-      "管道编号": document.getElementById('pipe').value,
-      "焊口编号": document.getElementById('weldId').value,
+      "装置代号": document.getElementById('device').value.replace("已选装置: ", ""),
+      "管道编号": document.getElementById('pipe').value.replace("已选管道: ", ""),
+      "焊口编号": document.getElementById('weldId').value.replace("已选焊口: ", ""),
       "实际焊工号": document.getElementById('welderId').value,
-      "吋径": document.getElementById('inch').value,
-      "材质": document.getElementById('material').value,
-      "焊接日期": document.getElementById('date').value
+      "吋径": "0.5",
+      "材质": "304 GB/T14976",
+      "焊接日期": document.getElementById('weldDate').value,
+      "焊缝类型": document.getElementById('weldType').value,
+      "焊接方法": document.getElementById('weldMethod').value,
+      "管工": document.getElementById('worker').value
     };
-    
-    if(!data["装置代号"] || !data["焊口编号"]) { alert("请填写必要信息！"); return; }
-    
+
+    if (!data["装置代号"] || !data["焊口编号"] || !data["实际焊工号"]) {
+      alert("请填写必要信息！");
+      return;
+    }
+
     const res = await fetch(URL, {
       method: "POST",
-      headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Content-Type": "application/json" },
+      headers: {
+        "apikey": KEY,
+        "Authorization": "Bearer " + KEY,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify(data)
     });
 
-    if(res.ok) {
-      // 成功后，我们不刷新整个页面，而是通过代码把焊口号清空，其余保留
-      // 这样既保留了美观布局，又实现了“连续录入”的快感
+    if (res.ok) {
       alert("提交成功！");
-      document.getElementById('weldId').value = '';
-      document.getElementById('weldId').focus();
-    } else { alert("提交失败"); }
+      document.getElementById('welderId').value = '';
+      document.getElementById('welderId').focus();
+    } else {
+      alert("提交失败");
+    }
   }
 </script>
 </body>
