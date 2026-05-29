@@ -2,11 +2,15 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>焊口智能化录入系统</title>
   
   <style>
     body { background-color: #f4f6f9; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
+    
+    /* 核心修复：当弹窗激活时，动态锁定背景，防止网页上下乱滚动 */
+    body.modal-open { overflow: hidden !important; height: 100vh !important; }
+
     .container { max-width: 480px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); box-sizing: border-box; }
     h3 { margin-top: 0; margin-bottom: 20px; color: #2c3e50; font-size: 22px; font-weight: 600; text-align: center; border-bottom: 2px solid #edf2f7; padding-bottom: 12px; }
     .label-hint { font-size: 14px; color: #4a5568; font-weight: 600; margin-top: 14px; display: block; }
@@ -22,20 +26,19 @@
     .trigger-btn.active { color: #2d3748; font-weight: bold; border-color: #3182ce; background-color: #f7fafc; }
     .trigger-btn:disabled { background-color: #edf2f7; color: #a0aec0; cursor: not-allowed; }
 
-    /* 优化遮罩层层级与稳定性 */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: flex-end; }
-    .modal-content { background: #fff; width: 100%; max-width: 480px; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 20px; box-sizing: border-box; max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column; animation: slideUp 0.15s ease-out; }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    /* 优化核心 1：将弹窗改造为屏幕绝对垂直居中、水平居中，避免沉底 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+    .modal-content { background: #fff; width: 100%; max-width: 420px; border-radius: 12px; padding: 20px; box-sizing: border-box; max-height: 75vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: zoomIn 0.15s ease-out; }
+    @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; flex-shrink: 0; }
     .modal-title { font-size: 16px; font-weight: bold; color: #2d3748; }
-    .modal-close { font-size: 22px; color: #e53e3e; cursor: pointer; border: none; background: #fff5f5; padding: 4px 12px; border-radius: 6px; font-weight: bold; }
+    .modal-close { font-size: 15px; color: #fff; background: #e53e3e; cursor: pointer; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; }
     
     .modal-search-box { width: 100%; padding: 12px; border: 2px solid #3182ce; border-radius: 6px; box-sizing: border-box; font-size: 15px; margin-bottom: 12px; background-color: #fff; flex-shrink: 0; }
-    .modal-search-box:focus { border-color: #2b6cb0; outline: none; }
 
     .grid-scroll-area { overflow-y: auto; flex-grow: 1; margin-top: 5px; -webkit-overflow-scrolling: touch; }
-    .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-bottom: 30px; }
+    .data-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-bottom: 15px; }
     .data-cell { background: #f7fafc; border: 1px solid #e2e8f0; padding: 11px 4px; text-align: center; border-radius: 6px; font-size: 13px; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.1s; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .data-cell:hover { background: #e6f0fa; border-color: #bee3f8; color: #2b6cb0; }
     .data-cell.hidden { display: none !important; }
@@ -207,235 +210,3 @@
     } 
     else if (type === 'weld') {
       titleHint.innerText = "请选择焊口号（灰色代表已被录入过） :";
-      searchInput.placeholder = "🔍 输入焊口号快捷筛选(如01)...";
-      
-      const devVal = document.getElementById('device').value;
-      const pipeVal = document.getElementById('pipe').value;
-      document.getElementById('weldTrigger').innerText = "正在智能拉取查重...";
-
-      try {
-        const resWelds = await fetch(BASE_URL + `v_unique_welds?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(devVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=*`, {
-          headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-        });
-        const rawWelds = await resWelds.json();
-        validWelds = rawWelds.map(item => item["焊口编号"]).filter(Boolean);
-        
-        const resRecorded = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(devVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7,%E5%AE%9E%E9%99%85%E7%84%8A%E5%B7%A5%E5%8F%B7`, {
-          headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-        });
-        const rawRecorded = await resRecorded.json();
-        const recordedWeldIds = rawRecorded
-          .filter(item => item["实际焊工号"] && item["实际焊工号"].trim() !== "")
-          .map(item => item["焊口编号"]);
-
-        if (validWelds.length === 0) {
-          container.innerHTML = '<div style="grid-column: span 3; text-align:center; color:#a0aec0; padding:20px;">该管道下未配置任何理论焊口</div>';
-          document.getElementById('weldTrigger').innerText = "该管道下无焊口";
-        } else {
-          validWelds.forEach(weld => {
-            let cell = document.createElement('div');
-            cell.setAttribute('data-search', weld.toLowerCase());
-            
-            if (recordedWeldIds.includes(weld)) {
-              cell.className = 'data-cell recorded';
-              cell.innerText = weld + " [已录]";
-            } else {
-              cell.className = 'data-cell';
-              cell.innerText = weld;
-              cell.onclick = () => selectWeld(weld);
-            }
-            container.appendChild(cell);
-          });
-          document.getElementById('weldTrigger').innerText = "-- 点击弹出格子选择焊口 --";
-        }
-      } catch (err) {
-        document.getElementById('weldTrigger').innerText = "焊口加载失败";
-        return;
-      }
-    }
-
-    document.getElementById('dataModal').style.display = 'flex';
-    // 自动聚焦输入框，方便手机端直接打字
-    setTimeout(() => { searchInput.focus(); }, 100);
-  }
-
-  function closeModal() {
-    document.getElementById('dataModal').style.display = 'none';
-  }
-
-  function filterGridData() {
-    const kw = document.getElementById('modalSearch').value.toLowerCase().trim();
-    const cells = document.querySelectorAll('#modalGridContainer .data-cell');
-    cells.forEach(cell => {
-      const searchTxt = cell.getAttribute('data-search') || '';
-      if (searchTxt.includes(kw)) {
-        cell.classList.remove('hidden');
-      } else {
-        cell.classList.add('hidden');
-      }
-    });
-  }
-
-  async function selectDevice(devVal) {
-    document.getElementById('device').value = devVal;
-    document.getElementById('deviceTrigger').innerText = "已选装置: " + devVal;
-    closeModal();
-    clearBelow('device');
-
-    const pipeBtn = document.getElementById('pipeTrigger');
-    pipeBtn.innerText = "正在精准加载管道列表...";
-
-    try {
-      const res = await fetch(BASE_URL + `v_unique_pipes?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(devVal)}&select=*`, {
-        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-      });
-      const rawData = await res.json();
-      validPipes = rawData.map(item => item["管道编号"]).filter(Boolean);
-      
-      pipeBtn.disabled = false;
-      pipeBtn.className = "trigger-btn active";
-      pipeBtn.innerText = "-- 点击弹出格子选择管道 --";
-    } catch (err) {
-      pipeBtn.innerText = "管道加载失败";
-    }
-  }
-
-  function selectPipe(pipeVal) {
-    document.getElementById('pipe').value = pipeVal;
-    document.getElementById('pipeTrigger').innerText = "已选管道: " + pipeVal;
-    closeModal();
-    clearBelow('pipe');
-
-    const weldBtn = document.getElementById('weldTrigger');
-    weldBtn.disabled = false;
-    weldBtn.className = "trigger-btn active";
-    weldBtn.innerText = "-- 点击弹出格子选择焊口 --";
-  }
-
-  async function selectWeld(weldVal) {
-    document.getElementById('weldId').value = weldVal;
-    document.getElementById('weldTrigger').innerText = "已选焊口: " + weldVal;
-    closeModal();
-
-    const devVal = document.getElementById('device').value;
-    const pipeVal = document.getElementById('pipe').value;
-    document.getElementById('msg').innerText = "正在智能识别并提取焊口数据...";
-
-    try {
-      const res = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(devVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(weldVal)}&limit=1`, {
-        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-      });
-      const rawData = await res.json();
-      
-      if (rawData && rawData.length > 0) {
-        const item = rawData[0];
-        document.getElementById('inch').value = item["吋径"] || '';
-        document.getElementById('wall').value = item["壁厚等级"] || '';
-        document.getElementById('spec').value = item["规格mm"] || '';
-        document.getElementById('material').value = item["材质"] || '';
-        document.getElementById('dn').value = item["公称直径DN"] || '';
-        document.getElementById('msg').innerText = "✨ 该焊口属性智能提取填入成功！";
-      }
-    } catch (err) {
-      document.getElementById('msg').innerText = "自动调取属性失败，请检查网络";
-    }
-  }
-
-  function clearBelow(level) {
-    if (level === 'device') {
-      document.getElementById('pipe').value = '';
-      const pipeBtn = document.getElementById('pipeTrigger');
-      pipeBtn.disabled = true;
-      pipeBtn.className = "trigger-btn";
-      pipeBtn.innerText = "请先选择装置代号";
-    }
-    if (level === 'device' || level === 'pipe') {
-      document.getElementById('weldId').value = '';
-      const weldBtn = document.getElementById('weldTrigger');
-      weldBtn.disabled = true;
-      weldBtn.className = "trigger-btn";
-      weldBtn.innerText = "请先选择管道编号";
-      
-      document.getElementById('inch').value = '';
-      document.getElementById('wall').value = '';
-      document.getElementById('spec').value = '';
-      document.getElementById('material').value = '';
-      document.getElementById('dn').value = '';
-      document.getElementById('msg').innerText = '';
-    }
-  }
-
-  async function save() {
-    const data = {
-      "装置代号": document.getElementById('device').value,
-      "管道编号": document.getElementById('pipe').value,
-      "焊口编号": document.getElementById('weldId').value,
-      "吋径": document.getElementById('inch').value,
-      "壁厚等级": document.getElementById('wall').value,
-      "规格mm": document.getElementById('spec').value,
-      "材质": document.getElementById('material').value,
-      "公称直径DN": document.getElementById('dn').value,
-      
-      "实际焊工号": document.getElementById('welderId').value,
-      "焊缝类型(必填）": document.getElementById('type').value,
-      "焊接方法": document.getElementById('method').value,
-      "焊接日期": document.getElementById('date').value,
-      "管工": document.getElementById('worker').value
-    };
-
-    if (!data["装置代号"] || !data["管道编号"] || !data["焊口编号"]) {
-      alert("提交失败：请点击大格子完整选定 [装置]、[管道] 和 [焊口] ！");
-      return;
-    }
-    if (!data["焊缝类型(必填）"] || !data["焊接方法"] || !data["实际焊工号"]) {
-      alert("提交失败：请完整填写 [实际焊工号]、[焊缝类型] 和 [焊接方法] ！");
-      return;
-    }
-
-    document.getElementById('msg').innerText = "正在执行终任防重锁校验...";
-    
-    try {
-      const checkRes = await fetch(BASE_URL + `weld_data?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(data["装置代号"])}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(data["管道编号"])}&%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(data["焊口编号"])}&select=id,%E5%AE%9E%E9%99%85%E7%84%8A%E5%B7%A5%E5%8F%B7`, {
-        headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
-      });
-      const checkData = await checkRes.json();
-      
-      const isAlreadyRecorded = checkData.some(item => item["实际焊工号"] && item["实际焊工号"].trim() !== "");
-      if (isAlreadyRecorded) {
-        alert(`❌ 提交失败：焊口 [ ${data["焊口编号"]} ] 刚刚已被录入，请勿重复提交！`);
-        document.getElementById('msg').innerText = "⚠️ 触发数据防重锁，录入已被拦截。";
-        return;
-      }
-
-      document.getElementById('msg').innerText = "防重校验通过，正在写入...";
-
-      const res = await fetch(BASE_URL + "weld_data?apikey=" + KEY, {
-        method: "POST",
-        headers: { 
-          "apikey": KEY, 
-          "Authorization": "Bearer " + KEY, 
-          "Content-Type": "application/json", 
-          "Prefer": "return=minimal" 
-        },
-        body: JSON.stringify(data)
-      });
-      
-      if(res.ok) {
-        document.getElementById('msg').innerText = "🎉 焊口数据成功录入主表！";
-        document.getElementById('welderId').value = '';
-        document.getElementById('type').value = '';
-        document.getElementById('method').value = '';
-        clearBelow('device');
-        document.getElementById('device').value = '';
-        document.getElementById('deviceTrigger').innerText = "-- 点击弹出格子选择装置 --";
-      } else {
-        document.getElementById('msg').innerText = "提交失败: " + await res.text();
-      }
-    } catch (err) {
-      document.getElementById('msg').innerText = "网络错误: " + err.message;
-    }
-  }
-</script>
-
-</body>
-</html>
