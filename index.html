@@ -2,14 +2,16 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>焊口录入</title>
   <style>
     body { background: #f4f6f9; padding: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .container { max-width: 450px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     .form-group { margin-bottom: 18px; }
     label { display: block; margin-bottom: 6px; font-size: 14px; color: #333; font-weight: 500; }
-    input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; box-sizing: border-box; }
+    /* 重点：给 select 加上样式，让它在手机上看起来就是个弹窗触发器 */
+    select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; background-color: #fff; appearance: menulist; }
+    input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; box-sizing: border-box; }
     button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 17px; font-weight: bold; margin-top: 10px; cursor: pointer; }
     .nav-btn { display: block; text-align: center; margin-top: 20px; color: #888; text-decoration: none; font-size: 14px; }
   </style>
@@ -17,8 +19,13 @@
 <body>
 <div class="container">
   <div class="form-group">
-    <label>装置代号</label>
-    <select id="device"><option value="">正在读取装置...</option></select>
+    <label>装置代号（点击弹出选择）</label>
+    <select id="device">
+      <option value="">请选择装置代号...</option>
+      <option value="1103-01">1103-01</option>
+      <option value="1103-02">1103-02</option>
+      <option value="1103-03">1103-03</option>
+    </select>
   </div>
   <div class="form-group"><label>管道编号</label><input id="pipe" placeholder="请输入管道编号"></div>
   <div class="form-group"><label>焊口编号</label><input id="weldId" placeholder="请输入焊口编号"></div>
@@ -26,6 +33,7 @@
   <div class="form-group"><label>吋径</label><input id="inch" placeholder="请输入吋径"></div>
   <div class="form-group"><label>材质</label><input id="material" placeholder="请输入材质"></div>
   <div class="form-group"><label>焊接日期</label><input id="date" type="date"></div>
+  
   <button id="submitBtn" onclick="save()">提交数据</button>
   <a href="data.html" class="nav-btn">查看工程量日报看板</a>
 </div>
@@ -36,22 +44,7 @@
 
   window.onload = () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    loadDevices();
   };
-
-  // 自动从数据库获取装置列表，保持系统灵活性
-  async function loadDevices() {
-    try {
-      const res = await fetch(URL + "?select=装置代号", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY }});
-      const data = await res.json();
-      const codes = [...new Set(data.map(i => i["装置代号"]))].filter(Boolean).sort();
-      const sel = document.getElementById('device');
-      sel.innerHTML = '<option value="">请选择装置代号</option>';
-      codes.forEach(c => { let o = document.createElement('option'); o.value = c; o.text = c; sel.appendChild(o); });
-    } catch(e) {
-      document.getElementById('device').innerHTML = '<option value="">读取失败</option>';
-    }
-  }
 
   async function save() {
     const data = {
@@ -64,7 +57,8 @@
       "焊接日期": document.getElementById('date').value
     };
     
-    if(!data["装置代号"] || !data["焊口编号"]) { alert("请填写必要信息！"); return; }
+    if(!data["装置代号"]) { alert("请选择装置代号！"); return; }
+    if(!data["焊口编号"]) { alert("请填写焊口编号！"); return; }
     
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -79,14 +73,14 @@
 
       if(res.ok) {
         alert("提交成功！");
-        // 关键体验：只清空焊口号并自动跳转，其他信息保留，实现连续录入
+        // 核心逻辑：清空焊口，保留装置、管道、焊工信息
         document.getElementById('weldId').value = '';
         document.getElementById('weldId').focus();
       } else { 
         alert("提交失败，请检查数据"); 
       }
     } catch(err) {
-      alert("网络连接异常，请重试");
+      alert("网络连接异常");
     } finally {
       btn.disabled = false;
       btn.innerText = "提交数据";
