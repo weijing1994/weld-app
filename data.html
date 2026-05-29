@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>数据看板</title>
+  <style>
+    body { padding: 15px; background: #f4f6f9; font-family: sans-serif; }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 12px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: center; }
+    .back-btn { display: block; padding: 12px; background: #718096; color: white; text-align: center; border-radius: 6px; margin-bottom: 15px; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="back-btn">← 返回录入页</a>
+  <h3>已录入数据清单</h3>
+  <div style="overflow-x: auto;">
+    <table id="dataTable">
+      <thead><tr><th>日期</th><th>装置</th><th>管道</th><th>焊口</th><th>焊工</th></tr></thead>
+      <tbody id="dataBody"><tr><td colspan="5">加载中...</td></tr></tbody>
+    </table>
+  </div>
+  <script>
+    // 请把这部分内容连接到你的 Supabase 数据库
+    async function loadData() { /* 填入数据拉取逻辑 */ }
+    loadData();
+  </script>
+</body>
+</html>
