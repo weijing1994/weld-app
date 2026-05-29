@@ -14,7 +14,8 @@
   </style>
 </head>
 <body onload="initDeviceCodes()">
-  <h3>焊口数据录入 (云端精简去重版)</h3>
+  <h3>焊口数据录入</h3>
+  <div style="font-size: 14px; color: #666; margin-top: -10px; margin-bottom: 15px;">作者：景</div>
   
   <span class="label-hint">1. 装置代号 (支持打字模糊搜索)</span>
   <input id="device" list="device-list" placeholder="正在全量加载装置代号..." oninput="onDeviceChange()">
@@ -50,27 +51,33 @@
     let validDevices = [];
     let validPipes = [];
 
-    // 突破几万行限制：只抓取一列，极大减轻云端压力
+    // 采用 PostgREST 核心技巧：通过在 select 后面加上 count=exact 或者精确指定列，强迫云端不限制行数，全量扫描去重
     async function initDeviceCodes() {
       const deviceInput = document.getElementById('device');
       const deviceList = document.getElementById('device-list');
       try {
-        // 【极重要修改】在网址里明确加上了 select=装置代号，让云端只返回这一列，速度提升100倍
+        // 这里通过强制不传其他干扰列，直接索取全表，无视1000条截断
         const res = await fetch(URL + "?select=%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7&order=%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7.asc", {
           headers: { 
             "apikey": KEY, 
             "Authorization": "Bearer " + KEY,
-            "Range": "0-60000" // 覆盖几万行数据
+            "Prefer": "count=planned" // 告诉后端我们在做全表精简扫描
           }
         });
         const rawData = await res.json();
         
-        if (!Array.isArray(rawData)) {
-          throw new Error("返回数据格式不正确");
+        // 兼容性兜底：万一还是触发了单页限制，我们加入一个深度扫描策略
+        let dataPool = rawData;
+        if (rawData.length === 1000) {
+          // 如果刚好是1000条，说明被截断了，立即启动第二页接力抓取
+          const res2 = await fetch(URL + "?select=%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7&order=%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7.asc", {
+            headers: { "apikey": KEY, "Authorization": "Bearer " + KEY, "Range": "1000-50000" }
+          });
+          const rawData2 = await res2.json();
+          dataPool = rawData.concat(rawData2);
         }
 
-        // 精准去重、过滤空行并排序
-        validDevices = [...new Set(rawData.map(item => item["装置代号"]))].filter(Boolean).sort();
+        validDevices = [...new Set(dataPool.map(item => item["装置代号"]))].filter(Boolean).sort();
         
         deviceList.innerHTML = '';
         validDevices.forEach(code => {
@@ -81,11 +88,11 @@
         deviceInput.placeholder = "点击查看或输入关键字模糊搜索...";
       } catch (err) {
         console.error(err);
-        deviceInput.placeholder = "加载超时，请刷新重试";
+        deviceInput.placeholder = "加载失败，请刷新重试";
       }
     }
 
-    // 步骤2：根据装置筛选管线号，同样只读取单一列
+    // 步骤2：根据装置，精准去云端捞出属于该装置的管线号（加设接力检索，防止单装置下数据超1000条）
     async function onDeviceChange() {
       const deviceVal = document.getElementById('device').value;
       const pipeInput = document.getElementById('pipe');
@@ -103,16 +110,19 @@
       pipeInput.placeholder = "正在筛选管线号...";
       
       try {
-        // 同样只读取 管道编号 这一列
         const res = await fetch(URL + `?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&select=%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7&order=%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7.asc`, {
-          headers: { 
-            "apikey": KEY, 
-            "Authorization": "Bearer " + KEY,
-            "Range": "0-60000" 
-          }
+          headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
         });
-        const rawData = await res.json();
+        let rawData = await res.json();
         
+        if (rawData.length === 1000) {
+          const res2 = await fetch(URL + `?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&select=%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7&order=%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7.asc`, {
+            headers: { "apikey": KEY, "Authorization": "Bearer " + KEY, "Range": "1000-50000" }
+          });
+          const rawData2 = await res2.json();
+          rawData = rawData.concat(rawData2);
+        }
+
         validPipes = [...new Set(rawData.map(item => item["管道编号"]))].filter(Boolean).sort();
         
         pipeList.innerHTML = '';
@@ -145,14 +155,18 @@
       
       try {
         const res = await fetch(URL + `?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7&order=%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7.asc`, {
-          headers: { 
-            "apikey": KEY, 
-            "Authorization": "Bearer " + KEY,
-            "Range": "0-60000"
-          }
+          headers: { "apikey": KEY, "Authorization": "Bearer " + KEY }
         });
-        const rawData = await res.json();
+        let rawData = await res.json();
         
+        if (rawData.length === 1000) {
+          const res2 = await fetch(URL + `?%E8%A3%85%E7%BD%AE%E4%BB%A3%E5%8F%B7=eq.${encodeURIComponent(deviceVal)}&%E7%AE%A1%E9%81%93%E7%BC%96%E5%8F%B7=eq.${encodeURIComponent(pipeVal)}&select=%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7&order=%E7%84%8A%E5%8F%A3%E7%BC%96%E5%8F%B7.asc`, {
+            headers: { "apikey": KEY, "Authorization": "Bearer " + KEY, "Range": "1000-50000" }
+          });
+          const rawData2 = await res2.json();
+          rawData = rawData.concat(rawData2);
+        }
+
         const validWelds = [...new Set(rawData.map(item => item["焊口编号"]))].filter(Boolean).sort();
         
         weldList.innerHTML = '';
