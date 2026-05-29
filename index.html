@@ -74,18 +74,20 @@
   const SUPABASE_URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/";
   
   let allRecords = [];
+  let weldLibrary = [];
 
   window.onload = async () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    await loadData();
+    await loadAllData();
   };
 
-  async function loadData() {
+  async function loadAllData() {
     try {
       const res = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=*`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
       });
       allRecords = await res.json();
+      weldLibrary = [...allRecords];
     } catch (err) { console.error(err); }
   }
 
@@ -102,24 +104,51 @@
     list.innerHTML = '';
     
     let items = [];
-    if(currentModalType === 'device') items = [...new Set(allRecords.map(i => i['装置代号']))];
-    else if(currentModalType === 'pipe') items = [...new Set(allRecords.filter(i => i['装置代号'] === document.getElementById('device').value).map(i => i['管道编号']))];
-    else if(currentModalType === 'weld') items = allRecords.filter(i => i['管道编号'] === document.getElementById('pipe').value);
+    if(currentModalType === 'device') {
+      items = [...new Set(weldLibrary.map(i => i['装置代号'] || '').filter(Boolean))].sort();
+    }
+    else if(currentModalType === 'pipe') {
+      const device = document.getElementById('device').value;
+      items = [...new Set(weldLibrary.filter(i => i['装置代号'] === device).map(i => i['管道编号'] || '').filter(Boolean))].sort();
+    }
+    else if(currentModalType === 'weld') {
+      const pipe = document.getElementById('pipe').value;
+      items = weldLibrary.filter(i => i['管道编号'] === pipe);
+    }
 
-    items.forEach(item => {
-      const val = typeof item === 'object' ? item['焊口编号'] : item;
-      const isSubmitted = item['管工'] ? true : false;
-      const div = document.createElement('div');
-      div.className = 'modal-item' + (isSubmitted ? ' submitted' : '');
-      div.innerText = val + (isSubmitted ? ' [已录]' : '');
-      div.onclick = () => { if(!isSubmitted) selectItem(item); };
-      list.appendChild(div);
-    });
+    if(currentModalType === 'device' || currentModalType === 'pipe') {
+      items.filter(val => val.toLowerCase().includes(keyword)).forEach(val => {
+        const div = document.createElement('div');
+        div.className = 'modal-item';
+        div.innerText = val;
+        div.onclick = () => selectItem(val);
+        list.appendChild(div);
+      });
+    } else {
+      items.filter(item => item['焊口编号'].toLowerCase().includes(keyword)).forEach(item => {
+        const isSubmitted = !!item['实际焊工号'];
+        const div = document.createElement('div');
+        div.className = 'modal-item' + (isSubmitted ? ' submitted' : '');
+        div.innerText = item['焊口编号'] + (isSubmitted ? ' [已录]' : '');
+        div.onclick = () => { if(!isSubmitted) selectItem(item); };
+        list.appendChild(div);
+      });
+    }
   }
 
   function selectItem(item) {
-    if(currentModalType === 'device') { document.getElementById('device').value = item; document.getElementById('pipe').disabled = false; }
-    else if(currentModalType === 'pipe') document.getElementById('pipe').value = item;
+    if(currentModalType === 'device') {
+      document.getElementById('device').value = item;
+      document.getElementById('pipe').value = '';
+      document.getElementById('weldId').value = '';
+      clearAutoFields();
+      document.getElementById('pipe').disabled = false;
+    }
+    else if(currentModalType === 'pipe') {
+      document.getElementById('pipe').value = item;
+      document.getElementById('weldId').value = '';
+      clearAutoFields();
+    }
     else {
       document.getElementById('weldId').value = item['焊口编号'];
       document.getElementById('inch').value = item['吋径'] || '';
@@ -129,6 +158,14 @@
       document.getElementById('dn').value = item['公称直径DN'] || '';
     }
     closeModal();
+  }
+
+  function clearAutoFields() {
+    document.getElementById('inch').value = '';
+    document.getElementById('wall').value = '';
+    document.getElementById('spec').value = '';
+    document.getElementById('material').value = '';
+    document.getElementById('dn').value = '';
   }
 
   function closeModal() { document.getElementById('modal').style.display = 'none'; }
@@ -150,7 +187,7 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
     });
-    if(res.ok) { alert("提交成功"); loadData(); } else alert("提交失败");
+    if(res.ok) { alert("提交成功"); loadAllData(); } else alert("提交失败");
   }
 </script>
 </body>
