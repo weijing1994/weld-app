@@ -5,18 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>工程量日报看板</title>
   <style>
-    /* 严格的排版隔离 */
     body { background-color: #f4f6f9; padding: 10px; font-family: sans-serif; margin: 0; }
     .card { background: #fff; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
-    
-    /* 按钮样式 */
     .back-btn { display: block; padding: 12px; background: #718096; color: white; text-align: center; text-decoration: none; border-radius: 8px; font-weight: bold; margin-bottom: 10px; }
     
-    /* 表格居中与美化 */
-    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
-    .data-table th, .data-table td { border: 1px solid #cbd5e0; padding: 10px 5px; text-align: center; vertical-align: middle; }
-    .data-table th { background-color: #edf2f7; color: #2d3748; font-weight: bold; }
-    
+    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+    .data-table th, .data-table td { border: 1px solid #cbd5e0; padding: 8px 4px; text-align: center; vertical-align: middle; }
+    .data-table th { background-color: #edf2f7; color: #2d3748; }
     #dateFilter { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; margin-top: 5px; }
   </style>
 </head>
@@ -24,20 +19,15 @@
 
   <div class="card">
     <a href="index.html" class="back-btn">← 返回录入页</a>
-    <label style="font-weight:bold; color:#4a5568;">选择查看日期</label>
-    <input type="date" id="dateFilter" onchange="refreshData()">
+    <input type="date" id="dateFilter" onchange="loadStats()">
   </div>
 
   <div class="card">
     <table class="data-table">
       <thead>
-        <tr>
-          <th>序号</th><th>装置</th><th>材质</th><th>当日吋</th><th>当日道</th><th>总吋</th><th>未完成</th><th>完成率</th>
-        </tr>
+        <tr><th>序号</th><th>装置</th><th>材质</th><th>当日吋</th><th>当日道</th><th>总吋</th><th>未完成</th><th>完成率</th></tr>
       </thead>
-      <tbody id="statBody">
-        <tr><td colspan="8">正在加载数据...</td></tr>
-      </tbody>
+      <tbody id="statBody"></tbody>
     </table>
   </div>
 
@@ -45,24 +35,23 @@
   const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
   const URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/weld_data";
 
-  function init() {
+  async function init() {
     document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
-    refreshData();
+    loadStats();
   }
 
-  async function refreshData() {
+  async function loadStats() {
     const d = document.getElementById('dateFilter').value;
-    // 强制 Range: 0-999 获取全部数据
-    const res = await fetch(URL + "?select=*", { 
-      headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-999" } 
-    });
+    // 依然使用带 Range: 0-999 的全量抓取，保证数据不漏
+    const res = await fetch(URL + "?select=*", { headers: { "apikey": KEY, "Authorization": "Bearer "+KEY, "Range": "0-999" }});
     const allData = await res.json();
     
-    // 统计逻辑：按 装置+材质 分组
     let stats = {};
     allData.forEach(row => {
-      let key = (row['装置代号'] || '未知') + "_" + (row['材质'] || '无');
-      if (!stats[key]) stats[key] = { dev: row['装置代号'], mat: row['材质'], dayInch: 0, dayCount: 0, totalInch: 0 };
+      let dev = row['装置代号'] || '未知';
+      let mat = row['材质'] || '无';
+      let key = `${dev}_${mat}`;
+      if (!stats[key]) stats[key] = { dev, mat, dayInch: 0, dayCount: 0, totalInch: 0 };
       
       let inch = parseFloat(row['吋径'] || 0);
       stats[key].totalInch += inch;
@@ -72,15 +61,23 @@
       }
     });
 
-    // 渲染表格
-    const tbody = document.getElementById('statBody');
-    tbody.innerHTML = Object.values(stats).map((g, i) => {
+    let lastDev = "";
+    document.getElementById('statBody').innerHTML = Object.values(stats).map((g, i) => {
+      let displayDev = (g.dev === lastDev) ? "" : g.dev; // 相同装置只显示一次
+      lastDev = g.dev;
+      
       let remaining = (g.totalInch - g.dayInch).toFixed(1);
-      let rate = g.totalInch > 0 ? ((g.dayInch / g.totalInch) * 100).toFixed(1) : 0;
+      let rate = g.totalInch > 0 ? ((g.dayInch / g.totalInch) * 100).toFixed(0) + "%" : "0%";
+      
       return `<tr>
-        <td>${i+1}</td><td>${g.dev}</td><td>${g.mat}</td>
-        <td>${g.dayInch.toFixed(1)}</td><td>${g.dayCount}</td>
-        <td>${g.totalInch.toFixed(1)}</td><td>${remaining}</td><td>${rate}%</td>
+        <td>${i+1}</td>
+        <td style="font-weight:bold;">${displayDev}</td>
+        <td>${g.mat}</td>
+        <td>${g.dayInch.toFixed(1)}</td>
+        <td>${g.dayCount}</td>
+        <td>${g.totalInch.toFixed(1)}</td>
+        <td>${remaining}</td>
+        <td>${rate}</td>
       </tr>`;
     }).join('');
   }
