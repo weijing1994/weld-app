@@ -6,24 +6,65 @@
   <title>焊口智能化录入系统</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-    body { background: #f0f2f5; padding: 20px; }
-    .container { max-width: 540px; margin: 0 auto; }
+    body { background: #f0f2f5; padding: 20px; touch-action: manipulation; }
+    .container { max-width: 540px; margin: 0 auto; padding-bottom: 30px; }
     .card { background: white; border-radius: 28px; padding: 24px 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
-    .title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 24px; color: #1f2937; }
+    .title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 24px; color: #1f373f; }
     .form-group { margin-bottom: 20px; }
     label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #374151; }
-    .hint { font-size: 11px; background: #eef2ff; padding: 2px 8px; border-radius: 30px; color: #2563eb; font-weight: normal; }
+    
+    .tag {
+      font-size: 11px;
+      font-weight: normal;
+      padding: 2px 8px;
+      border-radius: 30px;
+      white-space: nowrap;
+    }
+    .tag-blue { background: #eef2ff; color: #2563eb; }
+    .tag-red { background: #fee2e2; color: #b91c1c; }
+    .tag-pink { background: #fce7f3; color: #be185d; }
+
     input, select { width: 100%; height: 48px; padding: 0 16px; border: 1px solid #e2e8f0; border-radius: 14px; font-size: 15px; background: white; }
     input:focus, select:focus { outline: none; border-color: #3b82f6; }
     input[readonly] { background-color: #f8fafc; cursor: pointer; }
     .auto-field { background-color: #f1f5f9; font-weight: 500; }
-    .btn { width: 100%; height: 50px; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; border-radius: 16px; font-weight: 600; font-size: 16px; cursor: pointer; margin-top: 12px; }
-    .btn-secondary { background: #e2e8f0; color: #1f2937; margin-top: 10px; }
-    .msg-area { margin-top: 16px; padding: 10px; border-radius: 40px; font-size: 13px; text-align: center; }
+    
+    .btn { 
+      width: 100%; 
+      height: 50px; 
+      background: linear-gradient(135deg, #22c55e, #16a34a); 
+      color: white; 
+      border: none; 
+      border-radius: 16px; 
+      font-weight: 600; 
+      font-size: 16px; 
+      cursor: pointer; 
+      margin-top: 0;
+      display: block;
+      text-align: center;
+      line-height: 50px;
+      text-decoration: none;
+    }
+    .btn-pink { 
+      width: 100%; 
+      height: 50px; 
+      background: linear-gradient(135deg, #ec4899, #be185d); 
+      color: white; 
+      border: none; 
+      border-radius: 16px; 
+      font-weight: 600; 
+      font-size: 16px; 
+      cursor: pointer; 
+      margin-top: 10px;
+      display: block;
+      text-align: center;
+      line-height: 50px;
+      text-decoration: none;
+    }
+
+    .msg-area { margin-top: 12px; margin-bottom:12px; padding: 10px; border-radius: 40px; font-size: 13px; text-align: center; min-height:40px; cursor:pointer; }
     .success { background: #dcfce7; color: #15803d; }
     .error { background: #fee2e2; color: #b91c1c; }
-    .warning { background: #fef9c3; color: #854d0e; }
-    .footer { margin-top: 20px; font-size: 12px; color: #6b7280; text-align: center; }
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); align-items: center; justify-content: center; z-index: 1000; }
     .modal-content { background: white; width: 90%; max-width: 400px; border-radius: 32px; padding: 20px; max-height: 80vh; overflow-y: auto; }
     .modal-header { display: flex; justify-content: space-between; margin-bottom: 16px; }
@@ -32,32 +73,80 @@
     .modal-item { background: #f1f5f9; padding: 10px; text-align: center; border-radius: 40px; cursor: pointer; }
     .modal-item.submitted { background: #fee2e2; color: #991b1b; text-decoration: line-through; cursor: not-allowed; }
     .close-btn { background: #e2e8f0; border: none; padding: 5px 12px; border-radius: 30px; cursor: pointer; }
+
+    .check-row{margin-top:6px;display:flex;align-items:center;gap:6px;font-size:13px;}
+    .check-row input[type=checkbox]{accent-color:#22c55e;width:15px;height:15px;cursor:pointer;}
+    .text-pink{color:#be185d;}
+    
+    .wel-history{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+    .wel-item{padding:6px 10px;background:#e2e8f0;border-radius:10px;font-size:12px;cursor:pointer;}
+    
+    @media(max-width:500px){
+      .modal-list{grid-template-columns:1fr !important;}
+      input,select{height:52px !important;}
+    }
   </style>
 </head>
 <body>
 <div class="container">
   <div class="card">
     <div class="title">焊口智能化录入系统</div>
-    <div class="form-group"><label>装置代号 <span class="hint">1.点击选择</span></label><input id="device" readonly placeholder="点击选择装置代号" onclick="openModal('device')"></div>
-    <div class="form-group"><label>管道编号 <span class="hint">2.点击选择</span></label><input id="pipe" readonly placeholder="请先选择装置" onclick="openModal('pipe')" disabled></div>
-    <div class="form-group"><label>焊口编号 <span class="hint">3.点击选单</span></label>
-      <div style="display:flex; gap:8px;"><input id="weldId" readonly placeholder="点击右侧按钮选择" onclick="openWeldSelect()" style="flex:1;"><button type="button" class="btn" id="openWeldBtn" style="width:60px; margin:0;" onclick="openWeldSelect()">选单</button></div>
+    <div class="form-group">
+      <label>装置代号 <span class="tag tag-blue">1.点击选择</span></label>
+      <input id="device" readonly placeholder="点击选择装置代号" onclick="openModal('device')">
+      <div class="check-row">
+        <input type="checkbox" id="chkDev" onchange="checkDev()">
+        <span class="text-pink">恢复上次装置代号</span>
+      </div>
     </div>
-    <div class="form-group"><label>吋径<span style="color:red;font-size:12px;">自动生成</span></label><input id="inch" readonly class="auto-field"></div>
-    <div class="form-group"><label>壁厚等级<span style="color:red;font-size:12px;">自动生成</span></label><input id="wall" readonly class="auto-field"></div>
-    <div class="form-group"><label>规格mm<span style="color:red;font-size:12px;">自动生成</span></label><input id="spec" readonly class="auto-field"></div>
-    <div class="form-group"><label>材质<span style="color:red;font-size:12px;">自动生成</span></label><input id="material" readonly class="auto-field"></div>
-    <div class="form-group"><label>公称直径DN</label><input id="dn" readonly class="auto-field"></div>
-    <div class="form-group"><label>实际焊工号 <span class="hint">15分钟自动清空</span></label><input id="welderId"></div>
-    <div class="form-group"><label>焊缝类型</label><select id="weldType"><option value="">--请选择--</option><option value="BW">BW(对接)</option><option value="SW">SW(承插)</option><option value="D">D(管台)</option></select></div>
-    <div class="form-group"><label>焊接方法</label><select id="method"><option value="">--请选择--</option><option value="GTAW">GTAW(氩弧)</option><option value="SMAW">SMAW(手工)</option><option value="GTAW+SMAW">GTAW+SMAW（氩电联焊）</option></select></div>
-    <div class="form-group"><label>焊接日期</label><input id="date" type="date"></div>
-    <div class="form-group"><label>管工</label><input id="worker" readonly value="jingwei"></div>
+    <div class="form-group">
+      <label>管道编号 <span class="tag tag-blue">2.点击选择</span></label>
+      <input id="pipe" readonly placeholder="请先选择装置代号" onclick="openModal('pipe')" disabled>
+      <div class="check-row">
+        <input type="checkbox" id="chkPipe" onchange="checkPipe()">
+        <span class="text-pink">恢复上次管道编号</span>
+      </div>
+    </div>
+    <div class="form-group"><label>焊口编号 <span class="tag tag-blue">3.点击输入框选择</span></label><input id="weldId" readonly placeholder="请先选择管道编号" onclick="openWeldSelect()"></div>
+    
+    <div class="form-group"><label>吋径 <span class="tag tag-red">系统自动生成</span></label><input id="inch" readonly class="auto-field"></div>
+    <div class="form-group"><label>规格mm <span class="tag tag-red">系统自动生成</span></label><input id="spec" readonly class="auto-field"></div>
+    <div class="form-group"><label>材质 <span class="tag tag-red">系统自动生成</span></label><input id="material" readonly class="auto-field"></div>
+    <div class="form-group"><label>公称直径DN <span class="tag tag-red">系统自动生成</span></label><input id="dn" readonly class="auto-field"></div>
+    <div class="form-group"><label>壁厚等级 <span class="tag tag-red">系统自动生成</span></label><input id="wall" readonly class="auto-field"></div>
+    
+    <div class="form-group">
+      <label>实际焊工号 <span class="tag tag-blue">可手动输入</span></label>
+      <input id="welderId">
+      <div class="wel-history" id="welHistory"></div>
+    </div>
+    
+    <div class="form-group"><label>焊缝类型 <span class="tag tag-pink">固定选项</span></label>
+      <select id="weldType">
+        <option value="" disabled selected>--请选择--</option>
+        <option value="BW">BW(对接)</option>
+        <option value="SW">SW(承插)</option>
+        <option value="D">D(管台)</option>
+      </select>
+    </div>
+    <div class="form-group"><label>焊接方法 <span class="tag tag-pink">固定选项</span></label>
+      <select id="method">
+        <option value="" disabled selected>--请选择--</option>
+        <option value="GTAW">GTAW(氩弧)</option>
+        <option value="SMAW">SMAW(手工)</option>
+        <option value="GTAW+SMAW">GTAW+SMAW（氩电联焊）</option>
+      </select>
+    </div>
+    
+    <div class="form-group"><label>焊接日期 <span class="tag tag-red">系统自动识别今天日期</span></label><input id="date" type="date"></div>
+    <div class="form-group"><label>管工 <span class="tag tag-red">系统自动识别账号用户名</span></label><input id="worker" readonly></div>
+    
+    <div id="msg" class="msg-area" onclick="closeTip()"></div>
     <button class="btn" onclick="submitData()">提交焊口数据</button>
-    <div id="msg" class="msg-area"></div>
-    <button class="btn btn-secondary" onclick="window.location.href='data.html'">进入数据大表看板</button>
+    <a href="list.html" class="btn-pink">进入安装工程量报表</a>
   </div>
-  <div class="footer">作者：景伟 | 数据从Supabase动态读取</div>
+
+  <div style="margin-top:20px; font-size:12px; color:#6b7280; text-align:center;">开发维护者：JING</div>
 </div>
 
 <div id="modal" class="modal">
@@ -73,6 +162,7 @@
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiZGx2a2ZubHV5dnRxaW11ZWlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NTEyNzIsImV4cCI6MjA5NTUyNzI3Mn0.9Ib5-0oK4gaEzLzo_PdSQwElJffBj_Lmqs5J1icm0wk";
   const SUPABASE_URL = "https://abdlvkfnluyvtqimueiq.supabase.co/rest/v1/";
   
+  let loginAccount = '';
   let allDevice = [];
   let pipeDict = {};
   let weldDict = {};
@@ -80,23 +170,106 @@
   let tempPipeList = [];
   let tempWeldList = [];
 
+  // 15分钟有效期
+  const EXPIRE_TIME = 15 * 60 * 1000;
+  let lastSave = JSON.parse(localStorage.getItem('lastSave') || '{"dev":"","pip":"","saveTime":0}');
+  let welHistoryList = JSON.parse(localStorage.getItem('welHistory') || '[]');
+
+  // 关闭提示
+  function closeTip(){
+    const msg = document.getElementById('msg');
+    msg.innerText = '';
+  }
+
+  // 统一提示：1秒自动消失
+  function showTip(text){
+    const msg = document.getElementById('msg');
+    msg.className = 'msg-area error';
+    msg.innerText = text;
+    setTimeout(()=>{ 
+      msg.innerText = '';
+    }, 1000);
+    document.getElementById('chkDev').checked = false;
+    document.getElementById('chkPipe').checked = false;
+  }
+
+  // 取消勾选清空提示
+  document.getElementById('chkDev').onchange = function(e){
+    if(!e.target.checked) closeTip();
+    checkDev();
+  }
+  document.getElementById('chkPipe').onchange = function(e){
+    if(!e.target.checked) closeTip();
+    checkPipe();
+  }
+
+  function renderWelHistory(){
+    const box = document.getElementById('welHistory');
+    box.innerHTML = '';
+    welHistoryList.forEach(w => {
+      const btn = document.createElement('div');
+      btn.className = 'wel-item';
+      btn.innerText = w;
+      btn.onclick = () => {
+        document.getElementById('welderId').value = w;
+      };
+      box.appendChild(btn);
+    });
+  }
+
+  function addWelderToHistory(w){
+    if(!w) return;
+    let arr = welHistoryList.filter(x => x !== w);
+    arr.unshift(w);
+    arr = [...new Set(arr)].slice(0,5);
+    welHistoryList = arr;
+    localStorage.setItem('welHistory', JSON.stringify(arr));
+    renderWelHistory();
+  }
+
+  function saveLastSave(){
+    localStorage.setItem('lastSave', JSON.stringify(lastSave));
+  }
+
+  function getToday() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  // ✅ 修复：读取你建好的 v_unique_devices 视图，装置100%全量显示
   window.onload = async () => {
-    document.getElementById('date').value = new Date().toISOString().split('T')[0];
-    const res = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=装置代号&distinct=on`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
-    const d = await res.json();
-    allDevice = [...new Set(d.map(x=>x['装置代号']).filter(Boolean))].sort();
+    document.getElementById('date').value = getToday();
+    document.getElementById('worker').value = loginAccount;
+    renderWelHistory();
+    try {
+      const res = await fetch(`${SUPABASE_URL}v_unique_devices`,{
+        headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}
+      });
+      const d = await res.json();
+      if (!Array.isArray(d)) d = []
+      allDevice = d.map(x=>x['装置代号']).filter(Boolean).sort();
+    } catch (e) {
+      allDevice = []
+    }
   };
 
   async function openModal(type) {
+    document.body.style.overflow = 'hidden';
+    if(type === 'pipe' && !document.getElementById('device').value) return;
     currentModalType = type;
     document.getElementById('modalSearch').value = '';
     document.getElementById('modal').style.display = 'flex';
     if(type === 'pipe'){
       const dev = document.getElementById('device').value;
       if(!pipeDict[dev]){
-        const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=管道编号&装置代号=eq.${dev}&distinct=on`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
+        const r = await fetch(`${SUPABASE_URL}v_unique_pipes?装置代号=eq.${dev}`,{
+          headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}
+        });
         let pArr = await r.json();
-        pipeDict[dev] = [...new Set(pArr.map(x=>x['管道编号']).filter(Boolean))].sort();
+        pipeDict[dev] = [...new Set((pArr || []).map(x=>x['管道编号']).filter(Boolean))].sort();
       }
       tempPipeList = [...pipeDict[dev]];
     }else if(type === 'weld'){
@@ -104,8 +277,8 @@
       const pip = document.getElementById('pipe').value;
       const key = dev+'_'+pip;
       if(!weldDict[key]){
-        const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=*&装置代号=eq.${dev}&管道编号=eq.${pip}`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
-        weldDict[key] = await r.json();
+        const r = await fetch(`${SUPABASE_URL}${TABLE_NAME}?select=*&装置代号=eq.${dev}&管道编号=eq.${pip}&order=id.asc`,{headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
+        weldDict[key] = await r.json() || [];
       }
       tempWeldList = [...weldDict[key]];
     }
@@ -117,7 +290,6 @@
     const wrap = document.getElementById('modalList');
     wrap.innerHTML = '';
     let showArr = [];
-
     if(currentModalType === 'device'){
       showArr = allDevice.filter(s=>s.toLowerCase().includes(kw));
       showArr.forEach(v=>{
@@ -178,20 +350,36 @@
     document.getElementById('material').value='';
     document.getElementById('dn').value='';
   }
-  function closeModal(){document.getElementById('modal').style.display='none'}
+  
+  function closeModal(){
+    document.getElementById('modal').style.display='none';
+    document.body.style.overflow = '';
+  }
+  
   function openWeldSelect(){
-    if(document.getElementById('pipe').value) openModal('weld');
-    else alert('请先选择管道');
+    if(!document.getElementById('pipe').value) return;
+    openModal('weld');
   }
 
   async function submitData() {
+    const d=document.getElementById('device').value;
+    const p=document.getElementById('pipe').value;
+    const w=document.getElementById('welderId').value;
+    const wt=document.getElementById('weldType').value;
+    const m=document.getElementById('method').value;
+
+    if(!d || !p || !w || !wt || !m){
+      showTip('请填写完整信息');
+      return;
+    }
+
     const payload = {
-        "装置代号": document.getElementById('device').value,
-        "管道编号": document.getElementById('pipe').value,
+        "装置代号": d,
+        "管道编号": p,
         "焊口编号": document.getElementById('weldId').value,
-        "实际焊工号": document.getElementById('welderId').value,
-        "焊缝类型(必填）": document.getElementById('weldType').value,
-        "焊接方法": document.getElementById('method').value,
+        "实际焊工号": w,
+        "焊缝类型(必填）": wt,
+        "焊接方法": m,
         "焊接日期": document.getElementById('date').value,
         "管工": document.getElementById('worker').value
     };
@@ -200,8 +388,67 @@
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload)
     });
-    if(res.ok) alert("提交成功");
-    else alert("提交失败");
+    if(res.ok){
+      document.getElementById('msg').className = 'msg-area success';
+      document.getElementById('msg').innerText = '提交成功';
+      
+      lastSave.dev = d;
+      lastSave.pip = p;
+      lastSave.saveTime = Date.now();
+      saveLastSave();
+
+      addWelderToHistory(w);
+
+      setTimeout(()=>{
+        document.getElementById('device').value='';
+        document.getElementById('pipe').value='';
+        document.getElementById('pipe').disabled=true;
+        document.getElementById('weldId').value='';
+        document.getElementById('welderId').value='';
+        document.getElementById('weldType').selectedIndex=0;
+        document.getElementById('method').selectedIndex=0;
+        clearAutoFields();
+        document.getElementById('msg').innerText='';
+        document.getElementById('chkDev').checked=false;
+        document.getElementById('chkPipe').checked=false;
+      },700)
+    }else{
+      document.getElementById('msg').className = 'msg-area error';
+      document.getElementById('msg').innerText = '提交失败';
+      setTimeout(()=>{
+        document.getElementById('msg').innerText='';
+      },1000)
+    }
+  }
+
+  function checkDev(){
+    const box = document.getElementById('chkDev');
+    if(!box.checked) return;
+    const now = Date.now();
+    if(!lastSave.dev || (now - lastSave.saveTime > EXPIRE_TIME)){
+      showTip('无记录，已超时（15分钟有效期），无法恢复');
+      box.checked = false;
+      return;
+    }
+    document.getElementById('device').value = lastSave.dev;
+    document.getElementById('pipe').disabled = false;
+  }
+
+  function checkPipe(){
+    const box = document.getElementById('chkPipe');
+    if(!box.checked) return;
+    const now = Date.now();
+    if(!lastSave.pip || (now - lastSave.saveTime > EXPIRE_TIME)){
+      showTip('无记录，已超时（15分钟有效期），无法恢复');
+      box.checked = false;
+      return;
+    }
+    if(!document.getElementById('device').value){
+      showTip('请先选择装置代号');
+      box.checked = false;
+      return;
+    }
+    document.getElementById('pipe').value = lastSave.pip;
   }
 </script>
 </body>
